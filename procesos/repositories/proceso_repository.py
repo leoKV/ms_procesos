@@ -23,6 +23,16 @@ class ProcesoRepository:
             return result[0]
         else:
             return 5
+        
+    def get_modelo_demucs(self):
+        with connections['default'].cursor()  as cursor:
+            cursor.execute("select * from public.sps_modelo_demucs()")
+            result = cursor.fetchone()
+        if result:
+            return result[0]
+        else:
+            return 'mdx_extra'
+
     # Actualiza el estado del proceso en sus distintas fases.
     def update_estado_proceso(self, proceso_id, cancion_id, estado_id, maquina_id):
         with connections['default'].cursor() as cursor:

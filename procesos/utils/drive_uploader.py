@@ -15,7 +15,7 @@ SERVICE_ACCOUNT_FILE = "./credentials/credentials.json"
 # Autentica y devuelve un cliente de Google Drive API
 def authenticate_drive():
     creds = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-    return build("drive", "v3", credentials=creds)
+    return build("drive", "v3", credentials=creds, cache_discovery=False)
 
 # Crea una carpeta en Google Drive dentro de una carpeta padre
 def create_folder(service, folder_name, parent_folder_id):
@@ -29,10 +29,43 @@ def create_folder(service, folder_name, parent_folder_id):
 
 # Sube un archivo a una carpeta específica en Google Drive
 def upload_file(service, file_path, file_name, folder_id):
+    # Verifica si ya existe un archivo con ese nombre
+    query = (
+        f"'{folder_id}' in parents and name = '{file_name}' and trashed = false"
+    )
+    try:
+        response = service.files().list(
+            q=query,
+            spaces="drive",
+            fields="files(id, name)",
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True
+        ).execute()
+        files = response.get("files", [])
+        # Si existe, elimina el archivo previo
+        for file in files:
+            file_id = file["id"]
+            service.files().delete(fileId=file_id).execute()
+    except HttpError as e:
+        logger.error("[ERROR] Error verificando existencia de archivo: %s", str(e))
+        print(f"[ERROR] Error verificando existencia de archivo: {str(e)}")
+    # Ahora sube el nuevo archivo
     file_metadata = {"name": file_name, "parents": [folder_id]}
     media = MediaFileUpload(file_path, resumable=False)
-    file = service.files().create(body=file_metadata, media_body=media, fields="id").execute()
-    return file.get("id")
+    try:
+        file = service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields="id",
+            supportsAllDrives=True
+        ).execute()
+        print(f"[INFO] Archivo subido: {file_name}")
+        return file.get("id")
+    except HttpError as e:
+        logger.error("[ERROR] Error subiendo archivo: %s", str(e))
+        print(f"[ERROR] Error subiendo archivo: {str(e)}")
+        return None
+
 
 # Descarga un archivo específico por nombre desde una carpeta en Google Drive.
 def download_file_from_folder(service, file_name, folder_id, destination_path):

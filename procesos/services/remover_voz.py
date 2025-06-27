@@ -28,9 +28,8 @@ class RemoverVozProceso(BaseProceso):
             self._actualizar_estado_proceso(2)
             output_path = self._descargar_cancion()
             output_path = self._recortar_audio(output_path)
-            self._subir_main(output_path)
             self._separar_voces(output_path)
-            self._subir_archivos()
+            self._subir_archivos(output_path)
             self._limpiar_archivos_locales()
             self._actualizar_estado_proceso(3)
         except Exception as e:
@@ -55,6 +54,7 @@ class RemoverVozProceso(BaseProceso):
         self.folder_drive = datos['folder_drive']
         self.inicio = datos['inicio']
         self.fin = datos['fin']
+        self.modelo_demucs = self.proceso_repo.get_modelo_demucs()
         self.cancion_dir = os.path.join(self.songs_dir, str(self.drive_key))
         os.makedirs(self.cancion_dir, exist_ok=True)
 
@@ -139,33 +139,43 @@ class RemoverVozProceso(BaseProceso):
         updated_path = os.path.join(self.cancion_dir, "main.mp3")
         print("[INFO] Recorte completado y main.mp3 actualizado.")
         return updated_path
-    
-    # Sube el audio main.mp3 a google drive en cuanto esta listo.
-    def _subir_main(self, output_path):
-        if self.url_youtube or (not (self.drive_ext == '.mp3' and self.inicio == "00:00:00" and self.fin == "00:00:00")):
-            print("[INFO] Subiendo audio main.mp3 a Google Drive....")
-            self.folder_drive = get_or_create_folder_by_name(self.drive_service, self.drive_key, self.parent_dir, self.cancion_id)
-            upload_file(self.drive_service, output_path, "main.mp3", self.folder_drive)
-            print("[INFO] Archivo Subido a Google Drive.")
 
     # Separa las voces y la instrumental.
     def _separar_voces(self, output_path):
-        demucs.separate.main(["--mp3", "--two-stems", "vocals", "-n", "mdx_extra", "--out", self.cancion_dir, output_path])
-        print("[INFO] Separación de Audio Completada.")
-
-    # Sube los archivos faltantes vocals.mp3 y no_vocals.mp3 a Google Drive.
-    def _subir_archivos(self):
-        print("[INFO] Subiendo audios vocals.mp3 y no_vocals.mp3 a Google Drive....")
-        upload_file(self.drive_service, os.path.join(self.cancion_dir, "mdx_extra", "main", "vocals.mp3"), "vocals.mp3", self.folder_drive)
-        upload_file(self.drive_service, os.path.join(self.cancion_dir, "mdx_extra", "main", "no_vocals.mp3"), "no_vocals.mp3", self.folder_drive)
-        print("[INFO] Archivos Subidos a Google Drive.")
+        cmd = ["--mp3", "--two-stems", "vocals", "-n", self.modelo_demucs, "--out", self.cancion_dir, output_path]
+        # Ajustes específicos para mdx_extra
+        if self.modelo_demucs == "mdx_extra":
+            cmd.extend(["--segment", "10"])
+        try:
+            demucs.separate.main(cmd)
+            print("[INFO] Separación de Audio Completada.")
+        except Exception as e:
+            logger.error("[ERROR] Error en separación de voces: %s", str(e))
+            print(f"[ERROR] Error en separación de voces: {str(e)}")
+    
+    # Sube los archivos de audio main.mp3, vocals.mp3 y no_vocals.mp3 a Google Drive.
+    def _subir_archivos(self, output_path):
+        # Refresca la conexión a Google Drive.
+        self.drive_service = authenticate_drive()
+        # Verifica si hay que recrear la carpeta o si aún existe.
+        self.folder_drive = get_or_create_folder_by_name(self.drive_service, self.drive_key, self.parent_dir, self.cancion_id)
+        print("[INFO] Subiendo audios a Google Drive....")
+        try:
+            upload_file(self.drive_service, output_path, "main.mp3", self.folder_drive)
+            upload_file(self.drive_service, os.path.join(self.cancion_dir, self.modelo_demucs, "main", "vocals.mp3"), "vocals.mp3", self.folder_drive)
+            upload_file(self.drive_service, os.path.join(self.cancion_dir, self.modelo_demucs, "main", "no_vocals.mp3"), "no_vocals.mp3", self.folder_drive)
+            print("[INFO] Archivos de Audio Subidos a Google Drive.")
+        except Exception as e:
+            logger.error("[ERROR] Error al subir audios a Google Drive: %s", str(e))
+            print(f"[ERROR] Error al subir audios a Google Drive: {str(e)}")
+            self._manejar_error()
 
     # Elimina las carpetas que se generaron localmente.
     def _limpiar_archivos_locales(self):
-        shutil.rmtree(self.cancion_dir)
+        shutil.rmtree(self.cancion_dir, ignore_errors=True)
         print("Archivos Locales Eliminados")
 
     # Manejo de errores.
     def _manejar_error(self):
-        shutil.rmtree(self.cancion_dir, ignore_errors=True)
+        self._limpiar_archivos_locales()
         self._actualizar_estado_proceso(1)
