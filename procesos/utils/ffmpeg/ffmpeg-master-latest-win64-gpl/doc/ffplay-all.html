@@ -32588,11 +32588,16 @@ will be performed.
 <dd><p>Work the same as the identical <a class="ref" href="#scale">scale</a> filter options.
 </p>
 </dd>
+<dt><samp class="option">reset_sar</samp></dt>
+<dd><p>If enabled, output frames will always have a pixel aspect ratio of 1:1.  If
+disabled (the default), any aspect ratio mismatches, including those from
+e.g. anamorphic video sources, are forwarded to the output pixel aspect ratio.
+</p>
+</dd>
 <dt><samp class="option">normalize_sar</samp></dt>
-<dd><p>If enabled, output frames will always have a pixel aspect ratio of 1:1. This
-will introduce additional padding/cropping as necessary. If disabled (the
-default), any aspect ratio mismatches, including those from e.g. anamorphic
-video sources, are forwarded to the output pixel aspect ratio.
+<dd><p>Like <samp class="option">reset_sar</samp>, but instead of stretching the video content to fill
+the new output aspect ratio, the content is instead padded or cropped as
+necessary.
 </p>
 </dd>
 <dt><samp class="option">pad_crop_ratio</samp></dt>
@@ -52720,6 +52725,7 @@ library:
 <tr><td width="40%">raw E-AC-3</td><td width="10%">X</td><td width="10%">X</td></tr>
 <tr><td width="40%">raw EVC</td><td width="10%">X</td><td width="10%">X</td></tr>
 <tr><td width="40%">raw FLAC</td><td width="10%">X</td><td width="10%">X</td></tr>
+<tr><td width="40%">raw G.728</td><td width="10%"></td><td width="10%">X</td></tr>
 <tr><td width="40%">raw GSM</td><td width="10%"></td><td width="10%">X</td></tr>
 <tr><td width="40%">raw H.261</td><td width="10%">X</td><td width="10%">X</td></tr>
 <tr><td width="40%">raw H.263</td><td width="10%">X</td><td width="10%">X</td></tr>
@@ -53216,6 +53222,7 @@ following image formats are supported:
 <tr><td width="40%">FLAC (Free Lossless Audio Codec)</td><td width="10%">X</td><td width="10%">IX</td></tr>
 <tr><td width="40%">FTR Voice</td><td width="10%"></td><td width="10%">X</td></tr>
 <tr><td width="40%">G.723.1</td><td width="10%">X</td><td width="10%">X</td></tr>
+<tr><td width="40%">G.728</td><td width="10%"></td><td width="10%">X</td></tr>
 <tr><td width="40%">G.729</td><td width="10%"></td><td width="10%">X</td></tr>
 <tr><td width="40%">GSM</td><td width="10%">E</td><td width="10%">X</td><td width="40%">encoding supported through external library libgsm</td></tr>
 <tr><td width="40%">GSM Microsoft variant</td><td width="10%">E</td><td width="10%">X</td><td width="40%">encoding supported through external library libgsm</td></tr>

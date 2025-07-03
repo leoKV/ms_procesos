@@ -61,6 +61,7 @@ class RemoverVozProceso(BaseProceso):
     # Actualiza los estados del proceso.
     def _actualizar_estado_proceso(self, estado):
         self.proceso_repo.update_estado_proceso(proceso_id=self.proceso_id, cancion_id=self.cancion_id, estado_id=estado, maquina_id=self.maquina_id)
+        print(f"[INFO] Estado de proceso actualizado a estado: {estado}")
     
     # Descarga la canción
     def _descargar_cancion(self):
@@ -152,7 +153,7 @@ class RemoverVozProceso(BaseProceso):
         except Exception as e:
             logger.error("[ERROR] Error en separación de voces: %s", str(e))
             print(f"[ERROR] Error en separación de voces: {str(e)}")
-    
+            
     # Sube los archivos de audio main.mp3, vocals.mp3 y no_vocals.mp3 a Google Drive.
     def _subir_archivos(self, output_path):
         # Refresca la conexión a Google Drive.
@@ -168,14 +169,19 @@ class RemoverVozProceso(BaseProceso):
         except Exception as e:
             logger.error("[ERROR] Error al subir audios a Google Drive: %s", str(e))
             print(f"[ERROR] Error al subir audios a Google Drive: {str(e)}")
-            self._manejar_error()
 
     # Elimina las carpetas que se generaron localmente.
     def _limpiar_archivos_locales(self):
-        shutil.rmtree(self.cancion_dir, ignore_errors=True)
-        print("Archivos Locales Eliminados")
+        try:
+            shutil.rmtree(self.cancion_dir)
+            print("Archivos Locales Eliminados")
+        except Exception as e:
+            logger.error("[ERROR] No se pudieron eliminar los archivos locales: %s", str(e))
+            print(f"[ERROR] No se pudieron eliminar los archivos locales: {str(e)}")
 
     # Manejo de errores.
     def _manejar_error(self):
+        logger.info("[INFO] Manejando Errores....")
+        print("[INFO] Manejando Errores....")
         self._limpiar_archivos_locales()
         self._actualizar_estado_proceso(1)

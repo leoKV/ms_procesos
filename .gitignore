@@ -5,6 +5,10 @@ venv.bak/
 procesos/utils/ffmpeg/ffmpeg-master-latest-win64-gpl/bin/*.exe
 # Ignore credentials
 credentials/*.json
+# Ignorar Logs
+logs/
+# Ignorar Songs-Files
+songs-files/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

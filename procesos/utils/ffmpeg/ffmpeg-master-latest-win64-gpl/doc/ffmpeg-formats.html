@@ -6320,6 +6320,8 @@ attribute of the &lsquo;<samp class="samp">MPD</samp>&rsquo; element. Default: 6
 <p>WebRTC (Real-Time Communication) muxer that supports sub-second latency streaming according to
 the WHIP (WebRTC-HTTP ingestion protocol) specification.
 </p>
+<p>This is an experimental feature.
+</p>
 <p>It uses HTTP as a signaling protocol to exchange SDP capabilities and ICE lite candidates. Then,
 it uses STUN binding requests and responses to establish a session over UDP. Subsequently, it
 initiates a DTLS handshake to exchange the SRTP encryption keys. Lastly, it splits video and

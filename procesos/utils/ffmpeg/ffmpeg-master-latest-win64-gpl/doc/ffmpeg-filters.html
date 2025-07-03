@@ -20228,11 +20228,16 @@ will be performed.
 <dd><p>Work the same as the identical <a class="ref" href="#scale">scale</a> filter options.
 </p>
 </dd>
+<dt><samp class="option">reset_sar</samp></dt>
+<dd><p>If enabled, output frames will always have a pixel aspect ratio of 1:1.  If
+disabled (the default), any aspect ratio mismatches, including those from
+e.g. anamorphic video sources, are forwarded to the output pixel aspect ratio.
+</p>
+</dd>
 <dt><samp class="option">normalize_sar</samp></dt>
-<dd><p>If enabled, output frames will always have a pixel aspect ratio of 1:1. This
-will introduce additional padding/cropping as necessary. If disabled (the
-default), any aspect ratio mismatches, including those from e.g. anamorphic
-video sources, are forwarded to the output pixel aspect ratio.
+<dd><p>Like <samp class="option">reset_sar</samp>, but instead of stretching the video content to fill
+the new output aspect ratio, the content is instead padded or cropped as
+necessary.
 </p>
 </dd>
 <dt><samp class="option">pad_crop_ratio</samp></dt>

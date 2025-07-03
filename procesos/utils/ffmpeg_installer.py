@@ -6,10 +6,7 @@ import requests
 import zipfile
 import tarfile
 from pathlib import Path
-import environ
-
-env = environ.Env()
-environ.Env.read_env()
+from ms_procesos.config import env
 
 class FFmpegInstaller:
     def __init__(self):
@@ -68,18 +65,6 @@ class FFmpegInstaller:
                         os.chmod(found_path, st.st_mode | stat.S_IEXEC)
                     return found_path
         return None
-    
-    # def is_installed(self):
-    #     """Verifica si ffmpeg está instalado y disponible"""
-    #     try:
-    #         subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
-    #         return True
-    #     except (subprocess.CalledProcessError, FileNotFoundError):
-    #         # Verificar si ya lo tenemos instalado localmente
-    #         if self.bin_path and self.bin_path.exists():
-    #             return True
-    #         return False
-        
     
     def is_installed(self):
         """Verifica si ffmpeg está instalado y disponible"""
