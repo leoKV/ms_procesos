@@ -7,13 +7,13 @@ def solicitar_ruta_y_actualizar(nombre_var, valor_actual):
     if valor_actual_str:
         return valor_actual_str
     while True:
-        nueva_ruta = input(f"La {nombre_var} está vacía. Por favor introduce una ruta válida: ").strip()
+        nueva_ruta = input(f"[WARNING] La {nombre_var} está vacía. Por favor introduce una ruta válida: ").strip()
         if nueva_ruta:
-            print(f"La {nombre_var} ha sido actualizada correctamente: {nueva_ruta}")
+            print(f"[INFO] La {nombre_var} ha sido actualizada correctamente: {nueva_ruta}")
             actualizar_env(env_path, nombre_var, nueva_ruta)
             return nueva_ruta
         else:
-            print("La ruta no puede estar vacía. Intenta de nuevo.")
+            print("[WARNING] La ruta no puede estar vacía. Intenta de nuevo.")
 
 def actualizar_env(env_path, key, new_value):
     with open(env_path, "r", encoding="utf-8") as f:
