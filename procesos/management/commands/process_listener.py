@@ -8,7 +8,7 @@ from procesos.services.maquina_info_service import MaquinaInfoService
 from procesos.services.proceso_factory import ProcesoFactory
 from procesos.repositories.proceso_repository import ProcesoRepository
 from procesos.utils.ffmpeg_installer import ensure_ffmpeg_installed
-from ms_procesos.config import PATH_MAIN
+from ms_procesos import config
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from django.core.management.base import BaseCommand
@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
     help = 'Escucha y procesa nuevos procesos'
-
     def handle(self, *args, **options):
         logger.info("[INFO] Iniciando el listener de procesos...")
         print("[INFO] Iniciando el listener de procesos...")
@@ -103,7 +102,7 @@ class Command(BaseCommand):
 
     # Contexto - Proceso 1 - Remover Voz.
     def _crear_contexto_remover_voz(self):
-        songs_dir = PATH_MAIN
+        songs_dir = config.get_path_main()
         os.makedirs(songs_dir, exist_ok=True)
         parent_folder_id = CancionRepository().get_parent_folder()
         maquina_info = MaquinaInfoService()

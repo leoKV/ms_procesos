@@ -5,13 +5,13 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.oauth2 import service_account
 from procesos.repositories.cancion_repository import CancionRepository
-from ms_procesos.config import PATH_CREDENTIALS
+from ms_procesos import config
 import logging
 from procesos.utils import logs
 logger = logging.getLogger(__name__)
 
 SCOPES = ["https://www.googleapis.com/auth/drive"]
-SERVICE_ACCOUNT_FILE = str(PATH_CREDENTIALS)
+SERVICE_ACCOUNT_FILE = config.get_path_credentials()
 
 # Autentica y devuelve un cliente de Google Drive API
 def authenticate_drive():
