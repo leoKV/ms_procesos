@@ -1,4 +1,7 @@
 from django.db import connections
+import logging
+from procesos.utils import logs
+logger = logging.getLogger(__name__)
 
 class CancionRepository:
     # Obtiene la información necesaria para remover la voz de la canción.
@@ -24,6 +27,7 @@ class CancionRepository:
                 "fin": result[7],
             }
         else:
+            logger.warning("[WARNING] No se encontro la información para el proceso don ID: %s", proceso_id)
             print(f"[WARNING] No se encontro la información para el proceso con ID: {proceso_id}")
             return None
     
@@ -35,6 +39,8 @@ class CancionRepository:
         if result:
             return result[0]
         else:
+            logger.warning("[WARNING] No se encontro el link para la carpeta kia_songs")
+            print("[WARNING] No se encontro el link para la carpeta kia_songs")
             return ''
     
     # Actualiza la url de la carpeta de drive para la canción.

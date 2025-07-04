@@ -3,9 +3,10 @@ import os
 from logging.handlers import RotatingFileHandler
 from datetime import datetime, timedelta
 import glob
+from ms_procesos.config import PATH_LOGS
 
 # Crear carpeta de logs si no existe
-log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../logs')
+log_dir = PATH_LOGS
 os.makedirs(log_dir, exist_ok=True)
 
 # Nombre base del archivo de log con fecha actual

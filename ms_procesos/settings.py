@@ -79,27 +79,27 @@ WSGI_APPLICATION = 'ms_procesos.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'kia',
-#         'USER': 'postgres',
-#         'PASSWORD': 'gismo',
-#         'HOST': 'localhost',
-#         'PORT': '5432',
-#     }
-# }
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'kia',
-        'USER': 'kia_cat_web',
-        'PASSWORD': '7V0hbiqoTum%5_x4+UJ8',
-        'HOST': '101.44.185.78',
+        'USER': 'postgres',
+        'PASSWORD': 'gismo',
+        'HOST': 'localhost',
         'PORT': '5432',
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'kia',
+#         'USER': 'kia_cat_web',
+#         'PASSWORD': '7V0hbiqoTum%5_x4+UJ8',
+#         'HOST': '101.44.185.78',
+#         'PORT': '5432',
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

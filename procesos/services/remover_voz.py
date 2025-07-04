@@ -61,6 +61,7 @@ class RemoverVozProceso(BaseProceso):
     # Actualiza los estados del proceso.
     def _actualizar_estado_proceso(self, estado):
         self.proceso_repo.update_estado_proceso(proceso_id=self.proceso_id, cancion_id=self.cancion_id, estado_id=estado, maquina_id=self.maquina_id)
+        logger.info("[INFO] Estado de proceso actualizado a estado: %s", estado)
         print(f"[INFO] Estado de proceso actualizado a estado: {estado}")
     
     # Descarga la canción
@@ -75,7 +76,8 @@ class RemoverVozProceso(BaseProceso):
     # Descarga la canción de Youtube con o sin recorte de audio.
     def _descarga_youtube(self):
         url_completa = self.url_youtube if self.url_youtube.startswith("http") else f"https://www.youtube.com/watch?v={self.url_youtube}"
-        print(f"Descargado: {self.nombre_cancion} de Youtube...")
+        logger.info("[INFO] Descargando: %s de Youtube...", self.nombre_cancion)
+        print(f"[INFO] Descargado: {self.nombre_cancion} de Youtube...")
         temp_path = os.path.join(self.cancion_dir, "main_youtube")
         final_path = os.path.join(self.cancion_dir, "main")
         output_template = temp_path if (self.inicio != "00:00:00" or self.fin != "00:00:00") else final_path
@@ -103,7 +105,8 @@ class RemoverVozProceso(BaseProceso):
         
     # Descarga la canción de Google Drive con o sin recorte de audio.
     def _descarga_drive(self):
-        print(f"Descargado: {self.nombre_cancion} de Google Drive...")
+        logger.info("[INFO] Descargando: %s de Google Drive...", self.nombre_cancion)
+        print(f"[INFO] Descargado: {self.nombre_cancion} de Google Drive...")
         downloaded_file = download_file_from_folder(self.drive_service, "main", self.folder_drive, os.path.join(self.cancion_dir, "main"))
         if not downloaded_file:
             logger.error("[ERROR] No se pudo descargar el archivo main de Google Drive.")
@@ -126,6 +129,7 @@ class RemoverVozProceso(BaseProceso):
             return output_path
         if not self.url_youtube and self.drive_ext == '.mp3':
             delete_drive_file(self.drive_service, self.folder_drive, "main.")
+        logger.info("[INFO] Recortando audio desde %s hasta %s", self.inicio, self.fin)
         print(f"[INFO] Recortando audio desde {self.inicio} hasta {self.fin}")
         trimmed_path = os.path.join(self.cancion_dir, "main_trimmed.mp3")
         cmd = ["ffmpeg", "-y", "-i", output_path]
@@ -138,6 +142,7 @@ class RemoverVozProceso(BaseProceso):
         os.remove(output_path)
         os.rename(trimmed_path, os.path.join(self.cancion_dir, "main.mp3"))
         updated_path = os.path.join(self.cancion_dir, "main.mp3")
+        logger.info("[INFO] Recorte completado y main.mp3 actualizado.")
         print("[INFO] Recorte completado y main.mp3 actualizado.")
         return updated_path
 
@@ -149,6 +154,7 @@ class RemoverVozProceso(BaseProceso):
             cmd.extend(["--segment", "10"])
         try:
             demucs.separate.main(cmd)
+            logger.info("[INFO] Separación de Audio Completada.")
             print("[INFO] Separación de Audio Completada.")
         except Exception as e:
             logger.error("[ERROR] Error en separación de voces: %s", str(e))
@@ -160,11 +166,13 @@ class RemoverVozProceso(BaseProceso):
         self.drive_service = authenticate_drive()
         # Verifica si hay que recrear la carpeta o si aún existe.
         self.folder_drive = get_or_create_folder_by_name(self.drive_service, self.drive_key, self.parent_dir, self.cancion_id)
+        logger.info("[INFO] Subiendo audios a Google Drive....")
         print("[INFO] Subiendo audios a Google Drive....")
         try:
             upload_file(self.drive_service, output_path, "main.mp3", self.folder_drive)
             upload_file(self.drive_service, os.path.join(self.cancion_dir, self.modelo_demucs, "main", "vocals.mp3"), "vocals.mp3", self.folder_drive)
             upload_file(self.drive_service, os.path.join(self.cancion_dir, self.modelo_demucs, "main", "no_vocals.mp3"), "no_vocals.mp3", self.folder_drive)
+            logger.info("[INFO] Archivos de Audio Subidos a Google Drive.")
             print("[INFO] Archivos de Audio Subidos a Google Drive.")
         except Exception as e:
             logger.error("[ERROR] Error al subir audios a Google Drive: %s", str(e))
@@ -174,7 +182,8 @@ class RemoverVozProceso(BaseProceso):
     def _limpiar_archivos_locales(self):
         try:
             shutil.rmtree(self.cancion_dir)
-            print("Archivos Locales Eliminados")
+            logger.info("[INFO] Archivos Locales Eliminados.")
+            print("[INFO] Archivos Locales Eliminados.")
         except Exception as e:
             logger.error("[ERROR] No se pudieron eliminar los archivos locales: %s", str(e))
             print(f"[ERROR] No se pudieron eliminar los archivos locales: {str(e)}")

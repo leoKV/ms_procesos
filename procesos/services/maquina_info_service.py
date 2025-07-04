@@ -52,8 +52,3 @@ class MaquinaInfoService:
         if info:
             return info["numero_ejecuta"]
         return 0
-    
-    def _print_debug(self):
-        print(f"[DEBUG] MAC detectada: {self.mac}")
-        print(f"[DEBUG] Nombre PC: {self.nombre_pc}")
-        print(f"[DEBUG] Usuario: {self.usuario}")

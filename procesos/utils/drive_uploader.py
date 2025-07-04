@@ -5,12 +5,13 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.oauth2 import service_account
 from procesos.repositories.cancion_repository import CancionRepository
+from ms_procesos.config import PATH_CREDENTIALS
 import logging
 from procesos.utils import logs
 logger = logging.getLogger(__name__)
 
 SCOPES = ["https://www.googleapis.com/auth/drive"]
-SERVICE_ACCOUNT_FILE = "./credentials/credentials.json"
+SERVICE_ACCOUNT_FILE = str(PATH_CREDENTIALS)
 
 # Autentica y devuelve un cliente de Google Drive API
 def authenticate_drive():
@@ -59,6 +60,7 @@ def upload_file(service, file_path, file_name, folder_id):
             fields="id",
             supportsAllDrives=True
         ).execute()
+        logger.info("[INFO] Archivo subido: %s", file_name)
         print(f"[INFO] Archivo subido: {file_name}")
         return file.get("id")
     except HttpError as e:
@@ -85,7 +87,9 @@ def download_file_from_folder(service, file_name, folder_id, destination_path):
         while not done:
             status, done = downloader.next_chunk()
             if status:
+                logger.info("[INFO] Descargando... %s%%", int(status.progress() * 100))
                 print(f"[INFO] Descargando... {int(status.progress() * 100)}%")
+    logger.info("[INFO] Descarga completada: %s", final_path)
     print(f"[INFO] Descarga completada: {final_path}")
     return final_path
 
@@ -113,6 +117,7 @@ def get_or_create_folder_by_name(service, folder_name, parent_folder_id, cancion
         folders = results.get('files', [])
         if folders:
             # Si ya existe, devuelve el ID
+            logger.info("[INFO] Carpeta encontrada: %s", folders[0]['id'])
             print(f"[INFO] Carpeta encontrada: {folders[0]['id']}")
             return folders[0]['id']
         else:
@@ -130,6 +135,7 @@ def get_or_create_folder_by_name(service, folder_name, parent_folder_id, cancion
                 fields='id',
                 supportsAllDrives=True
             ).execute()
+            logger.info("[INFO] Carpeta recreada correctamente.")
             print("[INFO] Carpeta recreada correctamente.")
             new_url_drive = folder['id']
             # Actualiza la url de la carpeta en la base de datos.
