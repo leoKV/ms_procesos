@@ -153,6 +153,8 @@ class RemoverVozProceso(BaseProceso):
         if self.modelo_demucs == "mdx_extra":
             cmd.extend(["--segment", "10"])
         try:
+            logger.info("[INFO] Comenzando Separación de Audio...")
+            print("[INFO] Comenzando Separación de Audio...")
             demucs.separate.main(cmd)
             logger.info("[INFO] Separación de Audio Completada.")
             print("[INFO] Separación de Audio Completada.")
