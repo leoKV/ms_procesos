@@ -27,7 +27,7 @@ class CancionRepository:
                 "fin": result[7],
             }
         else:
-            logger.warning("[WARNING] No se encontro la información para el proceso don ID: %s", proceso_id)
+            logger.warning("[WARNING] No se encontro la información para el proceso con ID: %s", proceso_id)
             print(f"[WARNING] No se encontro la información para el proceso con ID: {proceso_id}")
             return None
     

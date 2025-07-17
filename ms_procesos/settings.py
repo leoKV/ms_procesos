@@ -10,16 +10,6 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
-# from pathlib import Path
-# import environ
-
-# # Build paths inside the project like this: BASE_DIR / 'subdir'.
-# BASE_DIR = Path(__file__).resolve().parent.parent
-
-# # Inicializando django-environ
-# env = environ.Env()
-# environ.Env.read_env(BASE_DIR / ".env")
-
 from ms_procesos.config  import env, BASE_DIR
 
 # Quick-start development settings - unsuitable for production
