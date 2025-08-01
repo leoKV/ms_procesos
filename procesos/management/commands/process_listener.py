@@ -45,8 +45,8 @@ class Command(BaseCommand):
             # Obtener procesos nuevos
             procesos = proceso_repository.get_nuevos_procesos()
             if procesos:
-                logger.info("[INFO] %s Nuevos procesos detectados.", len(procesos))
-                print(f"[INFO] {len(procesos)} Nuevos procesos detectados.")
+                logger.info("[INFO] %s Nuevo(s) procesos detectados.", len(procesos))
+                print(f"[INFO] {len(procesos)} Nuevo(s) procesos detectados.")
                 # Agrupar por tipo
                 procesos_por_tipo = {}
                 for proceso in procesos:
@@ -71,7 +71,8 @@ class Command(BaseCommand):
                     contexto_global = None
                     if tipo == 1:
                         contexto_global = self._crear_contexto_remover_voz()
-                
+                    if tipo == 6 or 7 or 8 or 9:
+                        contexto_global = self._crear_contexto_renderizar_kfn()
                     # Procesar en lotes
                     for i in range(0, len(procesos_tipo), max_ejecuciones):
                         batch = procesos_tipo[i:i + max_ejecuciones]
@@ -112,4 +113,11 @@ class Command(BaseCommand):
             "parent_folder_id": parent_folder_id,
             "maquina_info": maquina_info,
         }
+        return contexto
+    
+    # Contexto - Proceso 6,7,8 y 9 - Renderizar Karaoke/Ensayo Parte 1 y 2.
+    def _crear_contexto_renderizar_kfn(self):
+        maquina_info = MaquinaInfoService()
+        maquina_info.cargar_info_maquina()
+        contexto = {"maquina_info": maquina_info}
         return contexto

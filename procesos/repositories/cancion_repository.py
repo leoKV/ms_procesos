@@ -30,6 +30,36 @@ class CancionRepository:
             logger.warning("[WARNING] No se encontro la información para el proceso con ID: %s", proceso_id)
             print(f"[WARNING] No se encontro la información para el proceso con ID: {proceso_id}")
             return None
+        
+    
+    def obtener_datos_renderizar_kfn(self, proceso_id):
+        with connections['default'].cursor() as cursor:
+            cursor.execute(
+                """
+                select * from public.sps_renderizar_kfn(%s)
+                """,
+                [proceso_id]
+            )
+            result = cursor.fetchone()
+
+        if result:
+            return {
+                "proceso_id": result[0],
+                "cancion_id": result[1],
+                "nombre": result[2],
+                "artista":result[3],
+                "cliente":result[4],
+                "publicidad":result[5],
+                "drive_key": result[6],
+                "url_drive": result[7],
+                "drive_final": result[8],
+                "drive_ensayo": result[9],
+                "info_extra":result[10]
+            }
+        else:
+            logger.warning("[WARNING] No se encontro la información para el proceso con ID: %s", proceso_id)
+            print(f"[WARNING] No se encontro la información para el proceso con ID: {proceso_id}")
+            return None
     
     # Obtiene el folder padre en el que se van a guardar las canciones.
     def get_parent_folder(self):
@@ -51,4 +81,13 @@ class CancionRepository:
                 select * from public.spu_url_drive(%s, %s)
                 """,
                 [cancion_id, new_url_drive]
+            )
+
+    def new_url_drive(self, cancion_id, new_url_drive, tipo_url):
+        with connections['default'].cursor() as cursor:
+            cursor.execute(
+                """
+                select * from public.spi_cancion_url(%s, %s, %s)
+                """,
+                [cancion_id, new_url_drive, tipo_url]
             )

@@ -1,4 +1,7 @@
 from django.db import connections
+import logging
+from procesos.utils import logs
+logger = logging.getLogger(__name__)
 
 class ProcesoRepository:
     # Obtiene los nuevos procesos con estado: Agregado.
@@ -32,13 +35,40 @@ class ProcesoRepository:
             return result[0]
         else:
             return 'mdx_extra'
+    
+    def get_porcentaje_kfn(self):
+        with connections['default'].cursor()  as cursor:
+            cursor.execute("select * from public.sps_porcentaje_kfn()")
+            result = cursor.fetchone()
+        if result:
+            return result[0]
+        else:
+            return 80
+        
+    def get_modo_ensayo(self):
+        with connections['default'].cursor()  as cursor:
+            cursor.execute("select * from public.sps_modo_ensayo()")
+            result = cursor.fetchone()
+        if result:
+            return result[0]
+        else:
+            return True
 
     # Actualiza el estado del proceso en sus distintas fases.
-    def update_estado_proceso(self, proceso_id, cancion_id, estado_id, maquina_id):
+    def update_estado_proceso(self, proceso_id, cancion_id, estado_id, maquina_id, msg_error):
         with connections['default'].cursor() as cursor:
             cursor.execute(
                 """
-                select * from public.spu_estado_proceso(%s, %s, %s, %s)
+                select * from public.spu_estado_proceso(%s, %s, %s, %s, %s)
                 """,
-                [proceso_id, cancion_id, estado_id, maquina_id]
+                [proceso_id, cancion_id, estado_id, maquina_id, msg_error]
+            )
+
+    def insertar_nuevo_proceso(self, tipo_proceso, maquina_id, cancion_id, info_extra):
+        with connections['default'].cursor() as cursor:
+            cursor.execute(
+                """
+                select * from public.spi_nuevo_proceso(%s, %s, %s, %s)
+                """,
+                [tipo_proceso, maquina_id, cancion_id, info_extra]
             )

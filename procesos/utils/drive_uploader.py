@@ -71,7 +71,7 @@ def upload_file(service, file_path, file_name, folder_id):
 
 # Descarga un archivo específico por nombre desde una carpeta en Google Drive.
 def download_file_from_folder(service, file_name, folder_id, destination_path):
-    query = f"'{folder_id}' in parents and name contains '{file_name}' and trashed = false"
+    query = f"'{folder_id}' in parents and name = '{file_name}' and trashed = false"
     response = service.files().list(q=query, fields="files(id, name)").execute()
     files = response.get("files", [])
     if not files:

@@ -53,3 +53,4 @@ def validar_y_actualizar_paths():
     solicitar_ruta_y_actualizar("PATH_MAIN")
     solicitar_ruta_y_actualizar("PATH_CREDENTIALS")
     solicitar_ruta_y_actualizar("PATH_LOGS")
+    solicitar_ruta_y_actualizar("PATH_SONGS_KFN")
