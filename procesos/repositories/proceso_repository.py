@@ -44,16 +44,7 @@ class ProcesoRepository:
             return result[0]
         else:
             return 80
-        
-    def get_modo_ensayo(self):
-        with connections['default'].cursor()  as cursor:
-            cursor.execute("select * from public.sps_modo_ensayo()")
-            result = cursor.fetchone()
-        if result:
-            return result[0]
-        else:
-            return True
-
+    
     # Actualiza el estado del proceso en sus distintas fases.
     def update_estado_proceso(self, proceso_id, cancion_id, estado_id, maquina_id, msg_error):
         with connections['default'].cursor() as cursor:
