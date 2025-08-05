@@ -38,7 +38,7 @@ Antes de comenzar, asegúrate de tener instalado lo siguiente:
     <img width="639" height="294" alt="image" src="https://github.com/user-attachments/assets/aa0f4548-e8d8-4372-9c80-792010eb7c95" />
     
 7. **Verificar las rutas en el archivo .env**:
-   <img width="1425" height="652" alt="image" src="https://github.com/user-attachments/assets/9caecc33-06f9-49e5-9e19-2731e65bdd04" />
+   <img width="1367" height="596" alt="image" src="https://github.com/user-attachments/assets/41d457f2-f1e7-4a15-be05-2ed085cd3f84" />
 
 - PATH_SONGS_KFN: Hace referencia a la carpeta donde se guardan las carpetas de cada canción con su key, las cuales contienen los archivos importantes
   de cada una de ellas, tales como: main.mp3, no_vocals.mp3, caratula.png etc. Esta carpeta corresponde al microservicio: ms_karafun.
