@@ -15,6 +15,23 @@ class RemoverVozProceso(BaseProceso):
     def __init__(self, proceso, contexto_global):
         super().__init__(proceso)
         self.contexto = contexto_global
+        self.repo = None
+        self.proceso_repo = None
+        self.drive_service = None
+        self.maquina_id = None
+        self.songs_dir = None
+        self.parent_dir = None
+        self.proceso_id = None
+        self.cancion_id = None
+        self.nombre_cancion = None
+        self.drive_key = None
+        self.url_youtube = None
+        self.folder_drive = None
+        self.inicio = None
+        self.fin = None
+        self.modelo_demucs = None
+        self.cancion_dir = None
+        self.drive_ext = None
     #-------- Método Principal---------
     def procesar(self):
         repo = CancionRepository()
@@ -29,8 +46,9 @@ class RemoverVozProceso(BaseProceso):
             self._actualizar_estado_proceso(2,'')
             output_path = self._descargar_cancion()
             output_path = self._recortar_audio(output_path)
+            self._subir_main(output_path)
             self._separar_voces(output_path)
-            self._subir_archivos(output_path)
+            self._subir_archivos()
             self._limpiar_archivos_locales()
             self._actualizar_estado_proceso(3,'')
         except Exception as e:
@@ -151,6 +169,25 @@ class RemoverVozProceso(BaseProceso):
         logger.info(msg)
         print(msg)
         return updated_path
+    
+    # Subir audio main a Google Drive.
+    def _subir_main(self, output_path):
+        # Refresca la conexión a Google Drive.
+        self.drive_service = authenticate_drive()
+        # Verifica si hay que recrear la carpeta o si aún existe.
+        self.folder_drive = get_or_create_folder_by_name(self.drive_service, self.drive_key, self.parent_dir, self.cancion_id)
+        msg = "[INFO] Subiendo Main.mp3 a Google Drive...."
+        logger.info(msg)
+        print(msg)
+        try:
+            upload_file(self.drive_service, output_path, "main.mp3", self.folder_drive)
+            msg = "[INFO] Archivo Subido Correctamente."
+            logger.info(msg)
+            print(msg)
+        except Exception as e:
+            msg = f"[ERROR] Error al subir Main.mp3 a Google Drive: {str(e)}"
+            logger.error(msg)
+            print(msg)
 
     # Separa las voces y la instrumental.
     def _separar_voces(self, output_path):
@@ -171,8 +208,8 @@ class RemoverVozProceso(BaseProceso):
             logger.error(msg)
             print(msg)
             
-    # Sube los archivos de audio main.mp3, vocals.mp3 y no_vocals.mp3 a Google Drive.
-    def _subir_archivos(self, output_path):
+    # Sube los archivos de audio vocals.mp3 y no_vocals.mp3 a Google Drive.
+    def _subir_archivos(self):
         # Refresca la conexión a Google Drive.
         self.drive_service = authenticate_drive()
         # Verifica si hay que recrear la carpeta o si aún existe.
@@ -181,7 +218,6 @@ class RemoverVozProceso(BaseProceso):
         logger.info(msg)
         print(msg)
         try:
-            upload_file(self.drive_service, output_path, "main.mp3", self.folder_drive)
             upload_file(self.drive_service, os.path.join(self.cancion_dir, self.modelo_demucs, "main", "vocals.mp3"), "vocals.mp3", self.folder_drive)
             upload_file(self.drive_service, os.path.join(self.cancion_dir, self.modelo_demucs, "main", "no_vocals.mp3"), "no_vocals.mp3", self.folder_drive)
             msg = "[INFO] Archivos de Audio Subidos a Google Drive."

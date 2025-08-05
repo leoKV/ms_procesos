@@ -6,7 +6,7 @@ from procesos.services.base_proceso import BaseProceso
 from procesos.repositories.cancion_repository import CancionRepository
 from procesos.repositories.proceso_repository import ProcesoRepository
 from procesos.utils.KaraokeFUNForm import KaraokeFunForm
-from procesos.utils.drive_uploader import authenticate_drive, upload_file, download_file_from_folder
+from procesos.utils.drive_uploader import authenticate_drive, upload_file, download_file_from_folder, download_all_files
 from ms_procesos import config
 from procesos.utils.KFNDumper import KFNDumper
 import logging
@@ -29,6 +29,8 @@ class RenderizaKFNEnsayoP1(BaseProceso):
         self.drive_key = None
         self.url_drive = None
         self.path_songs_kfn = None
+        self.song_dir = None
+        self.archivos_kfn = None
     #-------- Método Principal---------
     def procesar(self):
         repo = CancionRepository()
@@ -42,7 +44,8 @@ class RenderizaKFNEnsayoP1(BaseProceso):
             self._running_on_windows()
             self._get_variables(datos)
             self._actualizar_estado_proceso(2,'')
-            archivo_kfn = self._download_kfn()
+            self._download_files()
+            archivo_kfn = self._search_kfn()
             if not archivo_kfn:
                 msg = "[WARNING] El archivo KFN es requerido."
                 raise EnvironmentError(msg)
@@ -58,7 +61,6 @@ class RenderizaKFNEnsayoP1(BaseProceso):
             msg = f"[ERROR] No se pudo renderizar: {str(e)})"
             logger.error(msg)
             print(msg)
-
     #-------- Métodos auxiliares---------
     # Verificar el sistema operativo
     def _running_on_windows(self):
@@ -82,6 +84,8 @@ class RenderizaKFNEnsayoP1(BaseProceso):
         self.drive_key = datos['drive_key']
         self.url_drive = datos['url_drive']
         self.path_songs_kfn = config.get_path_songs_kfn()
+        self.song_dir = os.path.join(self.path_songs_kfn, self.drive_key)
+        self.archivos_kfn = {}
 
     # Actualiza los estados del proceso.
     def _actualizar_estado_proceso(self, estado, msg_error):
@@ -89,26 +93,38 @@ class RenderizaKFNEnsayoP1(BaseProceso):
         msg = f"[INFO] Estado de proceso actualizado a estado: {estado}"
         logger.info(msg)
         print(msg)
-        
-    # Descarga el archivo KFN de Google Drive.
-    def _download_kfn(self):
+    
+    # Descargar todos los archivos de la carpeta de Google Drive.
+    def _download_files(self):
         try:
-            carpeta_cancion = os.path.join(self.path_songs_kfn, self.drive_key)
-            archivo_kfn = os.path.join(carpeta_cancion, "kara_fun.kfn")
-            # Verificar si el archivo ya existe.
+            msg = f"[INFO] Descargando archivos para la carpeta: {self.drive_key}"
+            logger.info(msg)
+            print(msg)
+            os.makedirs(self.song_dir, exist_ok=True)
+            download_all_files(self.drive_key, self.song_dir)
+        except Exception as e:
+            msg = f"[ERROR] No se pudieron descargar los archivos de Google Drive: {str(e)})"
+            logger.error(msg)
+            print(msg)
+        
+    # Buscar el archivo KFN.
+    def _search_kfn(self):
+        try:
+            archivo_kfn = os.path.join(self.song_dir, "kara_fun.kfn")
+            # Buscar KFN en carpeta local.
             if os.path.exists(archivo_kfn):
                 msg = f"[INFO] Archivo KFN Encontrado: {archivo_kfn}"
                 logger.info(msg)
                 print(msg)
                 return archivo_kfn
-            # Si no existe, se descarga de Google Drive.
+            # Si no existe, intenta volver a descargarlo de Google Drive.
             else:
-                os.makedirs(carpeta_cancion, exist_ok=True)
+                os.makedirs(self.song_dir, exist_ok=True)
                 drive_service = authenticate_drive()
                 msg = f"[INFO] Descargando Archivo KFN de Google Drive: {self.drive_key}..."
                 logger.info(msg)
                 print(msg)
-                download_kfn = download_file_from_folder(drive_service, "kara_fun.kfn", self.url_drive, os.path.join(carpeta_cancion, "kara_fun"))
+                download_kfn = download_file_from_folder(drive_service, "kara_fun.kfn", self.url_drive, os.path.join(self.song_dir, "kara_fun"))
                 if not download_kfn:
                     msg = "[ERROR] No se pudo descargar el archivo KFN de Google Drive."
                     logger.error(msg)
@@ -208,8 +224,7 @@ class RenderizaKFNEnsayoP1(BaseProceso):
                             linea = ",".join(partes)
                     nuevas_lineas.append(linea)
                 self.song_ini_text = "\n".join(nuevas_lineas)
-                song_dir = os.path.join(self.path_songs_kfn, self.drive_key)
-                path_nuevo_audio = os.path.join(song_dir, nuevo_audio)
+                path_nuevo_audio = os.path.join(self.song_dir, nuevo_audio)
                 k_name = "kara_fun.kfn"
                 kfun = KaraokeFunForm(path_nuevo_audio, self.archivos_kfn, self.song_ini_text, k_name, 2)
                 result = kfun.genera_archivo_kfun()
@@ -239,7 +254,6 @@ class RenderizaKFNEnsayoP1(BaseProceso):
             print(msg)
 
     def _mapear_archivos_kfn(self):
-        self.archivos_kfn = {}
         for e in self.entries_kfn:
             nombre = e.filename
             clave = (

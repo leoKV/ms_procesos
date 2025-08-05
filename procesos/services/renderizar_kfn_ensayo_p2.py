@@ -123,6 +123,17 @@ class RenderizaKFNEnsayoP2(BaseProceso):
                 print(msg)
                 return path_caratula_mp4
             path_caratula = os.path.join(self.song_dir, "caratula.png")
+            if not os.path.exists(path_caratula):
+                msg = f"[INFO] Descargando caratula.png de Google Drive: {self.drive_key}"
+                logger.info(msg)
+                print(msg)
+                drive_service = authenticate_drive()
+                download_caratula = download_file_from_folder(drive_service, "caratula.png", self.url_drive, os.path.join(self.song_dir, "caratula"))
+                if not download_caratula:
+                    msg = f"[ERROR] No se pudo descargar la caratula de Google Drive: {self.drive_key}"
+                    logger.error(msg)
+                    print(msg)
+                    return download_caratula
             path_pub = config.get_path_publicidad()
             path_sin_audio = os.path.join(path_pub, "sin_audio.mp3")
             msg = "[INFO] Conviertiendo Carátula a MP4..."
