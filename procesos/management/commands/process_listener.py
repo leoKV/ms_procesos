@@ -19,20 +19,23 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = 'Escucha y procesa nuevos procesos'
     def handle(self, *args, **options):
-        logger.info("[INFO] Iniciando el listener de procesos...")
-        print("[INFO] Iniciando el listener de procesos...")
+        msg = "[INFO] Iniciando el listener de procesos..."
+        logger.info(msg)
+        print(msg)
         # Comprobar instalación de la herramienta FFmpeg
         try:
-            logger.info("[INFO] Verificando instalación FFmpeg...")
-            print("[INFO] Verificando instalación FFmpeg...")
+            msg = "[INFO] Verificando instalación FFmpeg..."
+            logger.info(msg)
+            print(msg)
             ensure_ffmpeg_installed()
-            logger.info("[INFO] FFmpeg está instalado correctamente.")
-            print("[INFO] FFmpeg está instalado correctamente.")
+            msg = "[INFO] FFmpeg está instalado correctamente."
+            logger.info(msg)
+            print(msg)
         except Exception as e:
-            logger.error("[ERROR] No se pudo instalar/verificar FFmpeg %s", str(e))
-            print(f"[ERROR] No se pudo instalar/verificar FFmpeg: {str(e)}")
-            return   
-         
+            msg = f"[ERROR] No se pudo instalar/verificar FFmpeg: {str(e)}"
+            logger.error(msg)
+            print(msg)
+            return
         maquina_service = MaquinaInfoService()
         proceso_repository = ProcesoRepository()
         maquina_service.cargar_info_maquina()
@@ -45,8 +48,9 @@ class Command(BaseCommand):
             # Obtener procesos nuevos
             procesos = proceso_repository.get_nuevos_procesos()
             if procesos:
-                logger.info("[INFO] %s Nuevo(s) procesos detectados.", len(procesos))
-                print(f"[INFO] {len(procesos)} Nuevo(s) procesos detectados.")
+                msg = f"[INFO] {len(procesos)} Nuevo(s) procesos detectados."
+                logger.info(msg)
+                print(msg)
                 # Agrupar por tipo
                 procesos_por_tipo = {}
                 for proceso in procesos:
@@ -59,37 +63,47 @@ class Command(BaseCommand):
                 for tipo, procesos_tipo in procesos_por_tipo.items():
                     if not maquina_service.puede_procesar(tipo):
                         for p in procesos_tipo:
-                            logger.info("[INFO] La maquina no puede ejecutar procesos de tipo %s. El proceso con ID=%s será ignorado", tipo, p['id'])
-                            print(f"[INFO] La maquina no puede ejecutar procesos de tipo {tipo}. El proceso con ID={p['id']} será ignorado.")
+                            msg = f"[INFO] La maquina no puede ejecutar procesos de tipo {tipo}."
+                            logger.info(msg)
+                            print(msg)
                         continue
 
                     max_ejecuciones = maquina_service.max_ejecuciones(tipo)
-                    logger.info("[INFO] Procesando tipo=%s con max_ejecuciones=%s, procesos detectados=%s", tipo, max_ejecuciones, len(procesos_tipo))
-                    print(f"[INFO] Procesando tipo={tipo} con max_ejecuciones={max_ejecuciones}, procesos detectados={len(procesos_tipo)}")
-                    
+                    msg = f"[INFO] Procesando tipo={tipo} con max_ejecuciones={max_ejecuciones}, procesos detectados={len(procesos_tipo)}"
+                    logger.info(msg)
+                    print(msg)
                     # Crear contexto global por tipo de proceso
                     contexto_global = None
                     if tipo == 1:
                         contexto_global = self._crear_contexto_remover_voz()
-                    if tipo == 6 or 7 or 8 or 9:
+                    elif tipo in (6, 7, 8, 9):
                         contexto_global = self._crear_contexto_renderizar_kfn()
                     # Procesar en lotes
                     for i in range(0, len(procesos_tipo), max_ejecuciones):
                         batch = procesos_tipo[i:i + max_ejecuciones]
                         batch_ids = [p['id'] for p in batch]
-                        logger.info("[INFO] Procesando lote: %s", batch_ids)
-                        print(f"[INFO] Procesando lote: {batch_ids}")
+                        msg = f"[INFO] Procesando lote: {batch_ids}"
+                        logger.info(msg)
+                        print(msg)
                         with ThreadPoolExecutor(max_workers=max_ejecuciones) as executor:
                             futures = [executor.submit(self.procesar_proceso, p, contexto_global) for p in batch]
                             for future in as_completed(futures):
-                                future.result()
-                        logger.info("[INFO] Lote Procesado Correctamente.")
-                        print("[INFO] Lote Procesado Correctamente.")
+                                try:
+                                    future.result()
+                                except Exception as e:
+                                    msg = f"[ERROR] Un proceso en el lote falló: {str(e)}"
+                                    logger.error(msg)
+                                    print(msg)
+                        msg = "[INFO] Lote Procesado Correctamente."
+                        logger.info(msg)
+                        print(msg)
             else:
-                logger.info("[INFO] No hay nuevos procesos.")
-                print("[INFO] No hay nuevos procesos.")
-            logger.info("[INFO] Esperando %s segundos antes de la siguiente verificación...", tiempo_espera)
-            print(f"[INFO] Esperando {tiempo_espera} segundos antes de la siguiente verificación...\n")
+                msg = "[INFO] No hay nuevos procesos."
+                logger.info(msg)
+                print(msg)
+            msg = f"[INFO] Esperando {tiempo_espera} segundos antes de la siguiente verificación...\n"
+            logger.info(msg)
+            print(msg)
             time.sleep(tiempo_espera)
 
     def procesar_proceso(self, proceso, contexto_global=None):
@@ -98,8 +112,9 @@ class Command(BaseCommand):
             if handler:
                 handler.procesar()
         except Exception as e:
-            logger.error("[ERROR] Error al procesar proceso ID=%s: %s", proceso.id, str(e))
-            print(f"[ERROR] Error al procesar proceso ID={proceso.id}: {str(e)}")
+            msg = f"[ERROR] Error al procesar proceso ID={proceso.id}: {str(e)}"
+            logger.error(msg)
+            print(msg)
 
     # Contexto - Proceso 1 - Remover Voz.
     def _crear_contexto_remover_voz(self):

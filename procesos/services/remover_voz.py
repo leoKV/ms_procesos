@@ -77,7 +77,7 @@ class RemoverVozProceso(BaseProceso):
         self.modelo_demucs = self.proceso_repo.get_modelo_demucs()
         self.cancion_dir = os.path.join(self.songs_dir, str(self.drive_key))
         os.makedirs(self.cancion_dir, exist_ok=True)
-
+    
     # Actualiza los estados del proceso.
     def _actualizar_estado_proceso(self, estado, msg_error):
         self.proceso_repo.update_estado_proceso(proceso_id=self.proceso_id, cancion_id=self.cancion_id, estado_id=estado, maquina_id=self.maquina_id, msg_error=msg_error)
