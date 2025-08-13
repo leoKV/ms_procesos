@@ -1,7 +1,9 @@
 import os
+from pathlib import Path
 import re
 import platform
 import subprocess
+import zipfile
 from procesos.services.base_proceso import BaseProceso
 from procesos.repositories.cancion_repository import CancionRepository
 from procesos.repositories.proceso_repository import ProcesoRepository
@@ -12,7 +14,6 @@ from procesos.utils.KFNDumper import KFNDumper
 import logging
 from procesos.utils import logs
 logger = logging.getLogger(__name__)
-
 
 class RenderizaKFNEnsayoP1(BaseProceso):
     def __init__(self, proceso, contexto_global):
@@ -53,6 +54,7 @@ class RenderizaKFNEnsayoP1(BaseProceso):
                 song_ini = self._get_song_ini(archivo_kfn)
                 digitacion = self._validar_digitacion(song_ini)
                 if digitacion:
+                    self._verificar_recursos()
                     self._kfn_karaoke()
                     self._actualizar_estado_proceso(3,'')
                 else:
@@ -352,3 +354,37 @@ class RenderizaKFNEnsayoP1(BaseProceso):
             msg = f"[ERROR] Fallo inesperado al insertar el nuevo proceso: {e}"
             logger.error(msg)
             print(msg)
+    
+    def _verificar_recursos(self):
+        try:
+            path_fondos = config.get_path_img_fondo()
+            path_publicidad = config.get_path_publicidad()
+            # Si ambas rutas ya existen, no se nada.
+            if os.path.exists(path_fondos) and os.path.exists(path_publicidad):
+                return True
+            # Ruta del ZIP.
+            path_zip = os.path.join(os.getcwd(), "resources", "resources.zip")
+            path_d = Path(config.get_path_img_fondo())
+            path_destino = path_d.parent
+            if not os.path.exists(path_zip):
+                msg = f"[ERROR] No se encontró el archivo: {path_zip}"
+                logger.error(msg)
+                print(msg)
+                return False
+            # Extraer ZIP
+            msg = f"[INFO] Extrayendo {path_zip} a {path_destino}..."
+            logger.info(msg)
+            print(msg)
+            with zipfile.ZipFile(path_zip, 'r') as zip_ref:
+                zip_ref.extractall(path_destino)
+            # Eliminar ZIP después de extraer
+            os.remove(path_zip)
+            msg = "[INFO] Extracción completada y archivo ZIP eliminado."
+            logger.info(msg)
+            print(msg)
+            return True
+        except Exception as e:
+            msg = f"[ERROR] Fallo al verificar/extraer recursos: {e}"
+            logger.error(msg)
+            print(msg)
+            return False
