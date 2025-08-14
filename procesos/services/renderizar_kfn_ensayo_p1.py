@@ -306,7 +306,7 @@ class RenderizaKFNEnsayoP1(BaseProceso):
             msg = f"[INFO] Comprimiendo archivo {path_avi}"
             logger.info(msg)
             print(msg)
-            subprocess.run(["ffmpeg", "-y", "-i", path_avi, "-c:v", "libx264", "-crf", "23", "-preset", "slow", "-c:a", "aac", "-b:a", "320k", path_mp4], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(["ffmpeg", "-y", "-i", path_avi, "-c:v", "libx264", "-crf", "28", "-preset", "veryslow", "-c:a", "aac", "-b:a", "128k", path_mp4], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             msg = f"[INFO] Compresión a MP4 Finalizada {path_mp4}"
             logger.info(msg)
             print(msg)
