@@ -1,5 +1,9 @@
 import os
+import importlib.metadata
+import json
 import subprocess
+import sys
+import urllib.request
 from procesos.services.base_proceso import BaseProceso
 from procesos.repositories.cancion_repository import CancionRepository
 from procesos.repositories.proceso_repository import ProcesoRepository
@@ -96,6 +100,7 @@ class RemoverVozProceso(BaseProceso):
         
     # Descarga la canción de Youtube con o sin recorte de audio.
     def _descarga_youtube(self):
+        self._update_yt_dlp()
         url_completa = self.url_youtube if self.url_youtube.startswith("http") else f"https://www.youtube.com/watch?v={self.url_youtube}"
         msg = f"[INFO] Descargando: {self.nombre_cancion} de Youtube..."
         logger.info(msg)
@@ -122,6 +127,28 @@ class RemoverVozProceso(BaseProceso):
             return final_path
         else:
             return final_path
+    
+    def _update_yt_dlp(self):
+        try:
+            # Versión instalada actualmente
+            current_version = importlib.metadata.version("yt-dlp")
+            # Última versión en PyPI
+            with urllib.request.urlopen("https://pypi.org/pypi/yt-dlp/json") as r:
+                latest_version = json.load(r)["info"]["version"]
+            if current_version == latest_version:
+                return
+            msg = f"[INFO] Actualizando yt-dlp de {current_version} a {latest_version}..."
+            logger.info(msg)
+            print(msg)
+            subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp"],check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run([sys.executable, "-m", "pip", "freeze", "requirements.txt"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            msg = "[INFO] yt-dlp actualizado correctamente."
+            logger.info(msg)
+            print(msg)
+        except Exception as e:
+            msg = f"[ERROR] No se pudo verificar o actualizar yt-dlp: {e}"
+            logger.error(msg)
+            print(msg)
         
     # Descarga la canción de Google Drive con o sin recorte de audio.
     def _descarga_drive(self):
@@ -134,7 +161,6 @@ class RemoverVozProceso(BaseProceso):
             logger.error(msg)
             print(msg)
         ext = os.path.splitext(downloaded_file)[1].lower()
-
         if ext != ".mp3":
             mp3_path = os.path.join(self.cancion_dir, "main.mp3")
             subprocess.run(["ffmpeg", "-y", "-i", downloaded_file, mp3_path], check=True)
@@ -144,7 +170,7 @@ class RemoverVozProceso(BaseProceso):
         else:
             self.drive_ext = ext
             return downloaded_file
-        
+    
     # Realiza el recorte del audio y remplaza el audio.
     def _recortar_audio(self, output_path):
         if self.inicio == "00:00:00" and self.fin == "00:00:00":
