@@ -2,7 +2,7 @@
 venv/
 venv.bak/
 # Ignore FFMPEG
-procesos/utils/ffmpeg/ffmpeg-master-latest-win64-gpl/bin/*.exe
+procesos/utils/ffmpeg/
 # Ignore credentials
 credentials/*.json
 # Ignorar Logs

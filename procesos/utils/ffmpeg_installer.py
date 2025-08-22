@@ -16,7 +16,6 @@ class FFmpegInstaller:
         self.bin_path = None
     
     def _get_download_url(self):
-        """Devuelve la URL de descarga según el SO y arquitectura"""
         urls = {
             'windows': {
                 'x86_64': env("FFMPEG_WINDOWS_X86_64", default=""),
@@ -34,7 +33,6 @@ class FFmpegInstaller:
         return urls.get(self.system, {}).get(self.arch)
     
     def _download_and_extract(self, url):
-        """Descarga y extrae FFmpeg"""
         self.ffmpeg_dir.mkdir(exist_ok=True)
         download_path = self.ffmpeg_dir / "ffmpeg_download"
         # Descargar
@@ -54,7 +52,6 @@ class FFmpegInstaller:
         download_path.unlink()
     
     def _find_ffmpeg_binary(self):
-        """Busca el binario ffmpeg en la estructura de directorios"""
         for root, dirs, files in os.walk(self.ffmpeg_dir):
             for file in files:
                 if file.lower() in ('ffmpeg', 'ffmpeg.exe'):
@@ -67,42 +64,30 @@ class FFmpegInstaller:
         return None
     
     def is_installed(self):
-        """Verifica si ffmpeg está instalado y disponible"""
-        try:
-            subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True)
+        local_ffmpeg = self._find_ffmpeg_binary()
+        if local_ffmpeg and local_ffmpeg.exists():
+            self.bin_path = local_ffmpeg
+            # Agregar al PATH por si no estaba
+            bin_dir = str(self.bin_path.parent)
+            os.environ['PATH'] = f"{bin_dir}{os.pathsep}{os.environ['PATH']}"
             return True
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            # Verificar si ya lo tenemos instalado localmente
-            local_ffmpeg = self._find_ffmpeg_binary()
-            if local_ffmpeg and local_ffmpeg.exists():
-                self.bin_path = local_ffmpeg
-                # Agregar al PATH por si no estaba
-                bin_dir = str(self.bin_path.parent)
-                os.environ['PATH'] = f"{bin_dir}{os.pathsep}{os.environ['PATH']}"
-                return True
-            return False
+        return False
         
     def install(self):
-        """Instala FFmpeg si no está disponible"""
         if self.is_installed():
             return True
-
         url = self._get_download_url()
         if not url:
             raise Exception(f"No se encontró versión de FFmpeg para {self.system}/{self.arch}")
-
         self._download_and_extract(url)
         self.bin_path = self._find_ffmpeg_binary()
-
         if not self.bin_path:
             raise Exception("No se pudo encontrar el binario FFmpeg después de la extracción")
-
         # Agregar al PATH
         bin_dir = str(self.bin_path.parent)
         os.environ['PATH'] = f"{bin_dir}{os.pathsep}{os.environ['PATH']}"
         return True
     
 def ensure_ffmpeg_installed():
-    """Función conveniente para uso rápido"""
     installer = FFmpegInstaller()
     return installer.install()
