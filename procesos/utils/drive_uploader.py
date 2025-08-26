@@ -144,8 +144,9 @@ def download_file(file, dest_dir):
     if file_name in ['render_kfn_p1.mp4', 'render_kfn_p1_ensayo.mp4']:
         return
     local_path = os.path.join(dest_dir, file_name)
-    # Si no es 'kara_fun.kfn' y ya existe localmente, omitir la descarga
-    if file_name != 'kara_fun.kfn' and os.path.exists(local_path):
+    force_download = ['kara_fun.kfn', 'caratula.png']
+    # Actualizar siempre el KFN y la carátula.
+    if file_name not in force_download and os.path.exists(local_path):
         return
     try:
         service = authenticate_drive()
