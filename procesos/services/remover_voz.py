@@ -11,6 +11,7 @@ import yt_dlp
 from procesos.utils.drive_uploader import authenticate_drive, get_or_create_folder_by_name, upload_file, delete_drive_file, download_file_from_folder
 import demucs.separate
 import shutil
+from procesos.utils.print import _log_print
 import logging
 from procesos.utils import logs
 logger = logging.getLogger(__name__)
@@ -41,9 +42,8 @@ class RemoverVozProceso(BaseProceso):
         repo = CancionRepository()
         datos = repo.obtener_datos_remover_voz(self.proceso['id'])
         if not datos:
-            msg = "[ERROR] No se pudieron obtener datos para remover voz."
+            msg = _log_print("ERROR","No se pudieron obtener datos para remover voz.")
             logger.error(msg)
-            print(msg)
             return
         try:
             self._get_variables(datos)
@@ -55,10 +55,10 @@ class RemoverVozProceso(BaseProceso):
             self._subir_archivos()
             self._limpiar_archivos_locales()
             self._actualizar_estado_proceso(3,'')
+            self._actualizar_porcentaje(20)
         except Exception as e:
-            msg = f"[ERROR] No se pudo procesar: {str(e)}"
+            msg = _log_print("ERROR",f"No se pudo procesar: {str(e)}")
             logger.error(msg)
-            print(msg)
             self._manejar_error()
 
     #-------- Métodos auxiliares---------
@@ -85,10 +85,15 @@ class RemoverVozProceso(BaseProceso):
     # Actualiza los estados del proceso.
     def _actualizar_estado_proceso(self, estado, msg_error):
         self.proceso_repo.update_estado_proceso(proceso_id=self.proceso_id, cancion_id=self.cancion_id, estado_id=estado, maquina_id=self.maquina_id, msg_error=msg_error)
-        msg = f"[INFO] Estado de proceso actualizado a estado: {estado}"
+        msg = _log_print("INFO",f"Estado de proceso actualizado a estado: {estado}")
         logger.info(msg)
-        print(msg)
     
+    # Actualiza el porcentaje de avance.
+    def _actualizar_porcentaje(self, porcentaje):
+        self.proceso_repo.update_porcentaje_avance(cancion_id= self.cancion_id, porcentaje=porcentaje)
+        msg = _log_print("INFO",f"Porcentaje de Avance Actualizado a: {porcentaje}%")
+        logger.info(msg)
+
     # Descarga la canción
     def _descargar_cancion(self):
         if self.url_youtube:
@@ -102,9 +107,8 @@ class RemoverVozProceso(BaseProceso):
     def _descarga_youtube(self):
         self._update_yt_dlp()
         url_completa = self.url_youtube if self.url_youtube.startswith("http") else f"https://www.youtube.com/watch?v={self.url_youtube}"
-        msg = f"[INFO] Descargando: {self.nombre_cancion} de Youtube..."
+        msg = _log_print("INFO",f"Descargando: {self.nombre_cancion} de Youtube...")
         logger.info(msg)
-        print(msg)
         temp_path = os.path.join(self.cancion_dir, "main_youtube")
         final_path = os.path.join(self.cancion_dir, "main")
         output_template = temp_path if (self.inicio != "00:00:00" or self.fin != "00:00:00") else final_path
@@ -137,29 +141,24 @@ class RemoverVozProceso(BaseProceso):
                 latest_version = json.load(r)["info"]["version"]
             if current_version == latest_version:
                 return
-            msg = f"[INFO] Actualizando yt-dlp de {current_version} a {latest_version}..."
+            msg = _log_print("INFO",f"Actualizando yt-dlp de {current_version} a {latest_version}...")
             logger.info(msg)
-            print(msg)
             subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp"],check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             subprocess.run([sys.executable, "-m", "pip", "freeze", "requirements.txt"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            msg = "[INFO] yt-dlp actualizado correctamente."
+            msg = _log_print("INFO","yt-dlp actualizado correctamente.")
             logger.info(msg)
-            print(msg)
         except Exception as e:
-            msg = f"[ERROR] No se pudo verificar o actualizar yt-dlp: {e}"
+            msg = _log_print("ERROR",f"No se pudo verificar o actualizar yt-dlp: {e}")
             logger.error(msg)
-            print(msg)
-        
+    
     # Descarga la canción de Google Drive con o sin recorte de audio.
     def _descarga_drive(self):
-        msg = f"[INFO] Descargando: {self.nombre_cancion} de Google Drive..."
+        msg = _log_print("INFO",f"Descargando: {self.nombre_cancion} de Google Drive...")
         logger.info(msg)
-        print(msg)
         downloaded_file = download_file_from_folder(self.drive_service, "main.mp3", self.folder_drive, os.path.join(self.cancion_dir, "main"))
         if not downloaded_file:
-            msg = "[ERROR] No se pudo descargar el archivo main de Google Drive."
+            msg = _log_print("ERROR","No se pudo descargar el archivo main de Google Drive.")
             logger.error(msg)
-            print(msg)
         ext = os.path.splitext(downloaded_file)[1].lower()
         if ext != ".mp3":
             mp3_path = os.path.join(self.cancion_dir, "main.mp3")
@@ -177,9 +176,8 @@ class RemoverVozProceso(BaseProceso):
             return output_path
         if not self.url_youtube and self.drive_ext == '.mp3':
             delete_drive_file(self.drive_service, self.folder_drive, "main.")
-        msg = f"[INFO] Recortando audio desde {self.inicio} hasta {self.fin}"
+        msg = _log_print("INFO",f"Recortando audio desde {self.inicio} hasta {self.fin}")
         logger.info(msg)
-        print(msg)
         trimmed_path = os.path.join(self.cancion_dir, "main_trimmed.mp3")
         cmd = ["ffmpeg", "-y", "-i", output_path]
         if self.inicio != "00:00:00":
@@ -191,9 +189,8 @@ class RemoverVozProceso(BaseProceso):
         os.remove(output_path)
         os.rename(trimmed_path, os.path.join(self.cancion_dir, "main.mp3"))
         updated_path = os.path.join(self.cancion_dir, "main.mp3")
-        msg = "[INFO] Recorte completado y main.mp3 actualizado."
+        msg = _log_print("INFO","Recorte completado y main.mp3 actualizado.")
         logger.info(msg)
-        print(msg)
         return updated_path
     
     # Subir audio main a Google Drive.
@@ -202,18 +199,15 @@ class RemoverVozProceso(BaseProceso):
         self.drive_service = authenticate_drive()
         # Verifica si hay que recrear la carpeta o si aún existe.
         self.folder_drive = get_or_create_folder_by_name(self.drive_service, self.drive_key, self.parent_dir, self.cancion_id)
-        msg = "[INFO] Subiendo Main.mp3 a Google Drive...."
+        msg = _log_print("INFO","Subiendo Main.mp3 a Google Drive....")
         logger.info(msg)
-        print(msg)
         try:
             upload_file(self.drive_service, output_path, "main.mp3", self.folder_drive)
-            msg = "[INFO] Archivo Subido Correctamente."
+            msg = _log_print("INFO","Archivo Subido Correctamente.")
             logger.info(msg)
-            print(msg)
         except Exception as e:
-            msg = f"[ERROR] Error al subir Main.mp3 a Google Drive: {str(e)}"
+            msg = _log_print("ERROR",f"Error al subir Main.mp3 a Google Drive: {str(e)}")
             logger.error(msg)
-            print(msg)
 
     # Separa las voces y la instrumental.
     def _separar_voces(self, output_path):
@@ -222,54 +216,45 @@ class RemoverVozProceso(BaseProceso):
         if self.modelo_demucs == "mdx_extra":
             cmd.extend(["--segment", "10"])
         try:
-            msg = "[INFO] Comenzando Separación de Audio..."
+            msg = _log_print("INFO","Comenzando Separación de Audio...")
             logger.info(msg)
-            print(msg)
             demucs.separate.main(cmd)
-            msg = "[INFO] Separación de Audio Completada."
+            msg = _log_print("INFO","Separación de Audio Completada.")
             logger.info(msg)
-            print(msg)
         except Exception as e:
-            msg = f"[ERROR] Error en separación de voces: {str(e)}"
+            msg = _log_print("ERROR",f"Error en separación de voces: {str(e)}")
             logger.error(msg)
-            print(msg)
-            
+      
     # Sube los archivos de audio vocals.mp3 y no_vocals.mp3 a Google Drive.
     def _subir_archivos(self):
         # Refresca la conexión a Google Drive.
         self.drive_service = authenticate_drive()
         # Verifica si hay que recrear la carpeta o si aún existe.
         self.folder_drive = get_or_create_folder_by_name(self.drive_service, self.drive_key, self.parent_dir, self.cancion_id)
-        msg = "[INFO] Subiendo audios a Google Drive...."
+        msg = _log_print("INFO","Subiendo audios a Google Drive....")
         logger.info(msg)
-        print(msg)
         try:
             upload_file(self.drive_service, os.path.join(self.cancion_dir, self.modelo_demucs, "main", "vocals.mp3"), "vocals.mp3", self.folder_drive)
             upload_file(self.drive_service, os.path.join(self.cancion_dir, self.modelo_demucs, "main", "no_vocals.mp3"), "no_vocals.mp3", self.folder_drive)
-            msg = "[INFO] Archivos de Audio Subidos a Google Drive."
+            msg = _log_print("INFO","Archivos de Audio Subidos a Google Drive.")
             logger.info(msg)
-            print(msg)
         except Exception as e:
-            msg = f"[ERROR] Error al subir audios a Google Drive: {str(e)}"
+            msg = _log_print("ERROR",f"Error al subir audios a Google Drive: {str(e)}")
             logger.error(msg)
-            print(msg)
 
     # Elimina las carpetas que se generaron localmente.
     def _limpiar_archivos_locales(self):
         try:
             shutil.rmtree(self.cancion_dir)
-            msg = "[INFO] Archivos Locales Eliminados."
+            msg = _log_print("INFO","Archivos Locales Eliminados.")
             logger.info(msg)
-            print(msg)
         except Exception as e:
-            msg = f"[ERROR] No se pudieron eliminar los archivos locales: {str(e)}"
+            msg = _log_print("ERROR",f"No se pudieron eliminar los archivos locales: {str(e)}")
             logger.error(msg)
-            print(msg)
 
     # Manejo de errores.
     def _manejar_error(self):
-        msg = "[INFO] Manejando Errores...."
+        msg = _log_print("INFO","Manejando Errores....")
         logger.info(msg)
-        print(msg)
         self._limpiar_archivos_locales()
         self._actualizar_estado_proceso(1,'')

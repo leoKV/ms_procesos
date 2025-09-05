@@ -55,6 +55,15 @@ class ProcesoRepository:
                 [proceso_id, cancion_id, estado_id, maquina_id, msg_error]
             )
 
+    def update_porcentaje_avance(self, cancion_id, porcentaje):
+        with connections['default'].cursor() as cursor:
+            cursor.execute(
+                """
+                select * from public.spu_porcentaje_avance(%s, %s)
+                """,
+                [ cancion_id, porcentaje]
+            )
+    
     def insertar_nuevo_proceso(self, tipo_proceso, maquina_id, cancion_id, info_extra):
         with connections['default'].cursor() as cursor:
             cursor.execute(

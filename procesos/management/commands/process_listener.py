@@ -9,32 +9,29 @@ from procesos.services.proceso_factory import ProcesoFactory
 from procesos.repositories.proceso_repository import ProcesoRepository
 from procesos.utils.ffmpeg_installer import ensure_ffmpeg_installed
 from ms_procesos import config
-import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from django.core.management.base import BaseCommand
 import os
 import time
+from procesos.utils.print import _log_print
+import logging
 logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
     help = 'Escucha y procesa nuevos procesos'
     def handle(self, *args, **options):
-        msg = "[INFO] Iniciando el listener de procesos..."
+        msg = _log_print("INFO","Iniciando el listener de procesos...")
         logger.info(msg)
-        print(msg)
         # Comprobar instalación de la herramienta FFmpeg
         try:
-            msg = "[INFO] Verificando instalación FFmpeg..."
+            msg = _log_print("INFO","Verificando instalación FFmpeg...")
             logger.info(msg)
-            print(msg)
             ensure_ffmpeg_installed()
-            msg = "[INFO] FFmpeg está instalado correctamente."
+            msg = _log_print("INFO","FFmpeg está instalado correctamente.")
             logger.info(msg)
-            print(msg)
         except Exception as e:
-            msg = f"[ERROR] No se pudo instalar/verificar FFmpeg: {str(e)}"
+            msg = _log_print("ERROR", f"No se pudo Instalar/Verificar FFmpeg: {str(e)}")
             logger.error(msg)
-            print(msg)
             return
         maquina_service = MaquinaInfoService()
         proceso_repository = ProcesoRepository()
@@ -48,9 +45,8 @@ class Command(BaseCommand):
             # Obtener procesos nuevos
             procesos = proceso_repository.get_nuevos_procesos()
             if procesos:
-                msg = f"[INFO] {len(procesos)} Nuevo(s) procesos detectados."
+                msg = _log_print("INFO",f"{len(procesos)} Nuevo(s) procesos detectado(s).")
                 logger.info(msg)
-                print(msg)
                 # Agrupar por tipo
                 procesos_por_tipo = {}
                 for proceso in procesos:
@@ -63,15 +59,12 @@ class Command(BaseCommand):
                 for tipo, procesos_tipo in procesos_por_tipo.items():
                     if not maquina_service.puede_procesar(tipo):
                         for p in procesos_tipo:
-                            msg = f"[INFO] La maquina no puede ejecutar procesos de tipo {tipo}."
+                            msg = _log_print("INFO", f"La maquina no puede ejecutar procesos de tipo {tipo}.")
                             logger.info(msg)
-                            print(msg)
                         continue
-
                     max_ejecuciones = maquina_service.max_ejecuciones(tipo)
-                    msg = f"[INFO] Procesando tipo={tipo} con max_ejecuciones={max_ejecuciones}, procesos detectados={len(procesos_tipo)}"
+                    msg = _log_print("INFO",f"Procesando tipo={tipo} con max_ejecuciones={max_ejecuciones}, procesos detectados={len(procesos_tipo)}")
                     logger.info(msg)
-                    print(msg)
                     # Crear contexto global por tipo de proceso
                     contexto_global = None
                     if tipo == 1:
@@ -82,40 +75,33 @@ class Command(BaseCommand):
                     for i in range(0, len(procesos_tipo), max_ejecuciones):
                         batch = procesos_tipo[i:i + max_ejecuciones]
                         batch_ids = [p['id'] for p in batch]
-                        msg = f"[INFO] Procesando lote: {batch_ids}"
+                        msg = _log_print("INFO",f"Procesando lote: {batch_ids}")
                         logger.info(msg)
-                        print(msg)
                         with ThreadPoolExecutor(max_workers=max_ejecuciones) as executor:
-                            futures = [executor.submit(self.procesar_proceso, p, contexto_global) for p in batch]
+                            futures = [executor.submit(self._procesar_proceso, p, contexto_global) for p in batch]
                             for future in as_completed(futures):
                                 try:
                                     future.result()
                                 except Exception as e:
-                                    msg = f"[ERROR] Un proceso en el lote falló: {str(e)}"
+                                    msg = _log_print("ERROR",f"Un proceso en el lote falló: {str(e)}")
                                     logger.error(msg)
-                                    print(msg)
-                        msg = "[INFO] Lote Procesado Correctamente."
+                        msg = _log_print("INFO","Lote Procesado.")
                         logger.info(msg)
-                        print(msg)
             else:
-                msg = "[INFO] No hay nuevos procesos."
+                msg = _log_print("INFO","No hay nuevos procesos.")
                 logger.info(msg)
-                print(msg)
-            msg = f"[INFO] Esperando {tiempo_espera} segundos antes de la siguiente verificación...\n"
+            msg = _log_print("INFO",f"Esperando {tiempo_espera} segundos antes de la siguiente verificación...\n")
             logger.info(msg)
-            print(msg)
             time.sleep(tiempo_espera)
 
-    def procesar_proceso(self, proceso, contexto_global=None):
+    def _procesar_proceso(self, proceso, contexto_global=None):
         try:
             handler = ProcesoFactory.get_handler(proceso, contexto_global)
             if handler:
                 handler.procesar()
         except Exception as e:
-            msg = f"[ERROR] Error al procesar proceso ID={proceso.id}: {str(e)}"
+            msg = _log_print("ERROR",f"Error al procesar proceso ID={proceso.id}: {str(e)}")
             logger.error(msg)
-            print(msg)
-
     # Contexto - Proceso 1 - Remover Voz.
     def _crear_contexto_remover_voz(self):
         songs_dir = config.get_path_main()
@@ -129,7 +115,6 @@ class Command(BaseCommand):
             "maquina_info": maquina_info,
         }
         return contexto
-    
     # Contexto - Proceso 6,7,8 y 9 - Renderizar Karaoke/Ensayo Parte 1 y 2.
     def _crear_contexto_renderizar_kfn(self):
         maquina_info = MaquinaInfoService()

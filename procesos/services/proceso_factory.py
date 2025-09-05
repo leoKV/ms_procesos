@@ -3,6 +3,7 @@ from procesos.services.renderizar_kfn_p1 import RenderizaKFNP1
 from procesos.services.renderizar_kfn_p2 import RenderizaKFNP2
 from procesos.services.renderizar_kfn_ensayo_p1 import RenderizaKFNEnsayoP1
 from procesos.services.renderizar_kfn_ensayo_p2 import RenderizaKFNEnsayoP2
+from procesos.utils.print import _log_print
 
 class ProcesoFactory:
     _handlers = {
@@ -20,9 +21,7 @@ class ProcesoFactory:
     def get_handler(proceso, contexto_global=None):
         tipo = proceso["tipo_proceso_id"]
         handler_class = ProcesoFactory._handlers.get(tipo)
-
         if not handler_class:
-            print(f"[WARN] Proceso tipo {tipo} no implementado todavía. Proceso ID={proceso['id']} se omite.")
+            _log_print("WARNING",f"Proceso tipo {tipo} no implementado todavía. Proceso ID={proceso['id']} se omite.")
             return None
-
         return handler_class(proceso, contexto_global)

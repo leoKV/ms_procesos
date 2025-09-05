@@ -11,6 +11,7 @@ from procesos.utils.KaraokeFUNForm import KaraokeFunForm
 from procesos.utils.drive_uploader import authenticate_drive, upload_file, download_file_from_folder, download_all_files
 from ms_procesos import config
 from procesos.utils.KFNDumper import KFNDumper
+from procesos.utils.print import _log_print
 import logging
 from procesos.utils import logs
 logger = logging.getLogger(__name__)
@@ -37,9 +38,8 @@ class RenderizaKFNEnsayoP1(BaseProceso):
         repo = CancionRepository()
         datos = repo.obtener_datos_renderizar_kfn(self.proceso['id'])
         if not datos:
-            msg = "[ERROR] No se pudieron obtener datos para renderizar karafun."
+            msg = _log_print("ERROR","No se pudieron obtener datos para renderizar karafun.")
             logger.error(msg)
-            print(msg)
             return
         try:
             self._running_on_windows()
@@ -48,7 +48,7 @@ class RenderizaKFNEnsayoP1(BaseProceso):
             self._download_files()
             archivo_kfn = self._search_kfn()
             if not archivo_kfn:
-                msg = "[WARNING] El archivo KFN es requerido."
+                msg = _log_print("WARNING","El archivo KFN es requerido.")
                 raise EnvironmentError(msg)
             else:
                 song_ini = self._get_song_ini(archivo_kfn)
@@ -57,25 +57,23 @@ class RenderizaKFNEnsayoP1(BaseProceso):
                     self._verificar_recursos()
                     self._kfn_karaoke()
                     self._actualizar_estado_proceso(3,'')
+                    self._actualizar_porcentaje(80)
                 else:
                     self._actualizar_estado_proceso(4,'No se ha iniciado la digitación en el proyecto KFN.')
         except Exception as e:
-            msg = f"[ERROR] No se pudo renderizar: {str(e)})"
+            msg = _log_print("ERROR",f"No se pudo renderizar: {str(e)}")
             logger.error(msg)
-            print(msg)
     #-------- Métodos auxiliares---------
     # Verificar el sistema operativo
     def _running_on_windows(self):
         so = platform.system()
         if so != "Windows":
-            msg = "[WARNING] Este proceso solo puede ejecutarse en Windows." 
+            msg = _log_print("WARNING","Este proceso solo puede ejecutarse en Windows.")
             logger.warning(msg)
-            print(msg)
             raise EnvironmentError(msg)
-        msg = "[INFO] Sistema operativo compatible (Windows)."
+        msg = _log_print("INFO","Sistema operativo compatible (Windows).")
         logger.info(msg)
-        print(msg)
-
+    
     # Prepara las variables necesarias.
     def _get_variables(self, datos):
         self.repo = CancionRepository()
@@ -92,50 +90,49 @@ class RenderizaKFNEnsayoP1(BaseProceso):
     # Actualiza los estados del proceso.
     def _actualizar_estado_proceso(self, estado, msg_error):
         self.proceso_repo.update_estado_proceso(proceso_id=self.proceso_id, cancion_id=self.cancion_id, estado_id=estado, maquina_id=self.maquina_id, msg_error=msg_error)
-        msg = f"[INFO] Estado de proceso actualizado a estado: {estado}"
+        msg = _log_print("INFO",f"Estado de proceso actualizado a estado: {estado}")
         logger.info(msg)
-        print(msg)
-    
+
+    # Actualiza el porcentaje de avance.
+    def _actualizar_porcentaje(self, porcentaje):
+        self.proceso_repo.update_porcentaje_avance(cancion_id= self.cancion_id, porcentaje=porcentaje)
+        msg = _log_print("INFO",f"Porcentaje de Avance Actualizado a: {porcentaje}%")
+        logger.info(msg)
+
     # Descargar todos los archivos de la carpeta de Google Drive.
     def _download_files(self):
         try:
-            msg = f"[INFO] Descargando archivos para la carpeta: {self.drive_key}"
+            msg = _log_print("INFO",f"Descargando archivos para la carpeta: {self.drive_key}")
             logger.info(msg)
-            print(msg)
             os.makedirs(self.song_dir, exist_ok=True)
             download_all_files(self.drive_key, self.song_dir)
         except Exception as e:
-            msg = f"[ERROR] No se pudieron descargar los archivos de Google Drive: {str(e)})"
+            msg = _log_print("ERROR",f"No se pudieron descargar los archivos de Google Drive: {str(e)}")
             logger.error(msg)
-            print(msg)
-        
+
     # Buscar el archivo KFN.
     def _search_kfn(self):
         try:
             archivo_kfn = os.path.join(self.song_dir, "kara_fun.kfn")
             # Buscar KFN en carpeta local.
             if os.path.exists(archivo_kfn):
-                msg = f"[INFO] Archivo KFN Encontrado: {archivo_kfn}"
+                msg = _log_print("INFO",f"Archivo KFN Encontrado: {archivo_kfn}")
                 logger.info(msg)
-                print(msg)
                 return archivo_kfn
             # Si no existe, intenta volver a descargarlo de Google Drive.
             else:
                 os.makedirs(self.song_dir, exist_ok=True)
                 drive_service = authenticate_drive()
-                msg = f"[INFO] Descargando Archivo KFN de Google Drive: {self.drive_key}..."
+                msg = _log_print("INFO",f"Descargando Archivo KFN de Google Drive: {self.drive_key}...")
                 logger.info(msg)
-                print(msg)
                 download_kfn = download_file_from_folder(drive_service, "kara_fun.kfn", self.url_drive, os.path.join(self.song_dir, "kara_fun"))
                 if not download_kfn:
-                    msg = "[ERROR] No se pudo descargar el archivo KFN de Google Drive."
+                    msg = _log_print("ERROR","No se pudo descargar el archivo KFN de Google Drive.")
                     logger.error(msg)
-                    print(msg)
                 return download_kfn
         except Exception as e:
-            msg = f"[ERROR] No se pudo descargar el archivo Karafun: {str(e)})"
+            msg = _log_print("ERROR",f"No se pudo descargar el archivo Karafun: {str(e)}")
             logger.error(msg)
-            print(msg)
     
     def _get_song_ini(self, archivo_kfn):
         try:
@@ -147,9 +144,8 @@ class RenderizaKFNEnsayoP1(BaseProceso):
                 self.song_ini_text = song_bytes.decode("utf-8", errors="ignore")
                 return self.song_ini_text
         except Exception as e:
-            msg = f"[ERROR] No se pudo extraer el archivo Song.ini: {str(e)})"
+            msg = _log_print("ERROR",f"No se pudo extraer el archivo Song.ini: {str(e)}")
             logger.error(msg)
-            print(msg)
     
     def _validar_digitacion(self, song_ini):
         try:
@@ -175,35 +171,30 @@ class RenderizaKFNEnsayoP1(BaseProceso):
                 self.inicia_digitacion = int(valores[0]) / 100.0
             # 3. Calcular el porcentaje
             if total_palabras == 0:
-                msg = "[WARNING] No se encontro la letra de la canción."
+                msg = _log_print("WARNING","No se encontro la letra de la canción.")
                 logger.warning(msg)
-                print(msg)
                 return False
             if total_sync == 0:
-                msg = "[WARNING] Aún no se ha realizado la digitación."
+                msg = _log_print("WARNING","Aún no se ha realizado la digitación.")
                 logger.warning(msg)
-                print(msg)
                 return False
             porcentaje_real = (total_sync / total_palabras) * 100
-            msg = f"[INFO] Digitaciones: {total_sync}, Palabras: {total_palabras}, Porcentaje: {porcentaje_real:.2f}%"
+            msg = _log_print("INFO",f"Digitaciones: {total_sync}, Palabras: {total_palabras}, Porcentaje: {porcentaje_real:.2f}%")
             logger.info(msg)
-            print(msg)
             # 4. Validar porcentaje mínimo requerido
             if porcentaje_real >= porcentaje_minimo:
-                msg = "[INFO] La digitación cumple con el mínimo requerido."
+                msg = _log_print("INFO","La digitación cumple con el mínimo requerido.")
                 logger.info(msg)
-                print(msg)
+                self._actualizar_porcentaje(60)
                 return True
             else:
                 self._actualizar_estado_proceso(4,'La digitación no cumple con el mínimo requerido.')
-                msg = "[WARNING] La digitación no cumple con el mínimo requerido."
+                msg = _log_print("WARNING","La digitación no cumple con el mínimo requerido.")
                 logger.warning(msg)
-                print(msg)
                 return False
         except Exception as e:
-            msg = f"[ERROR] No se pudo validar el porcentaje de la digitación: {str(e)})"
+            msg = _log_print("ERROR",f"No se pudo validar el porcentaje de la digitación: {str(e)}")
             logger.error(msg)
-            print(msg)
             return False
     
     def _kfn_karaoke(self):
@@ -235,7 +226,7 @@ class RenderizaKFNEnsayoP1(BaseProceso):
                     logger.info(msg)
                     print(msg)
                     path_kfn = result[2]
-                    folder_kfn = os.path.dirname(path_kfn)  
+                    folder_kfn = os.path.dirname(path_kfn)
                     path_render_avi = os.path.join(folder_kfn, "kara_fun.avi")
                     path_mp4 = os.path.join(folder_kfn, "render_kfn_p1_ensayo.mp4")
                     self._renderizar_karaoke(path_kfn, path_render_avi)
@@ -243,17 +234,14 @@ class RenderizaKFNEnsayoP1(BaseProceso):
                     self._upload_mp4(path_mp4,'render_kfn_p1_ensayo.mp4', self.url_drive)
                     self._insertar_proceso_p2()
                 else:
-                    msg = "[ERROR] No se pudo reconstruir el archivo Karafun."
+                    msg = _log_print("ERROR","No se pudo reconstruir el archivo Karafun.")
                     logger.error(msg)
-                    print(msg)
             else:
-                msg = f"[WARNING] No se encontro el audio: {nuevo_audio}"
+                msg = _log_print("WARNING",f"No se encontro el audio: {nuevo_audio}")
                 logger.info(msg)
-                print(msg)
         except Exception as e:
-            msg = f"[ERROR] No se pudo renderizar el Karaoke Ensayo: {str(e)})"
+            msg = _log_print("ERROR",f"No se pudo renderizar el Karaoke Ensayo: {str(e)}")
             logger.error(msg)
-            print(msg)
 
     def _mapear_archivos_kfn(self):
         for e in self.entries_kfn:
@@ -274,86 +262,69 @@ class RenderizaKFNEnsayoP1(BaseProceso):
             # Ruta de Script AHK
             script_ahk = config.get_path_render_kfn()
             if not os.path.exists(ahk_exe):
-                msg = "[ERROR] AutoHotKey no esta instalado o la ruta es incorrecta."
-                print(msg)
+                msg = _log_print("ERROR"," AutoHotKey no esta instalado o la ruta es incorrecta.")
                 logger.error(msg)
                 return
             if not os.path.exists(script_ahk):
-                msg = "[ERROR] Archivo render_kfn.ahk no existe o la ruta es incorrecta."
-                print(msg)
+                msg = _log_print("ERROR","Archivo render_kfn.ahk no existe o la ruta es incorrecta.")
                 logger.error(msg)
                 return
             # Comando completo
             comando = [ahk_exe, script_ahk, path_kfn, path_avi]
-            msg = f"[INFO] Ejecutando AHK: {comando}"
+            msg = _log_print("INFO",f"Ejecutando AHK: {comando}")
             logger.info(msg)
-            print(msg)
             subprocess.run(comando, check=True)
-            msg = f"[INFO] Renderización Finalizada {path_avi}"
+            msg = _log_print("INFO",f"Renderización Finalizada {path_avi}")
             logger.info(msg)
-            print(msg)
         except subprocess.CalledProcessError as e:
-            msg = f"[ERROR] Error durante la renderización: {e}"
+            msg = _log_print("ERROR",f"Error durante la renderización: {e}")
             logger.error(msg)
-            print(msg)
         except Exception as e:
-            msg = f"[ERROR] Fallo inesperado en renderización: {e}"
+            msg = _log_print("ERROR",f"Fallo inesperado en renderización: {e}")
             logger.error(msg)
-            print(msg)
 
     def _comprimir_avi(self, path_avi, path_mp4):
         try:
-            msg = f"[INFO] Comprimiendo archivo {path_avi}"
+            msg = _log_print("INFO",f"Comprimiendo archivo {path_avi}")
             logger.info(msg)
-            print(msg)
             subprocess.run(["ffmpeg", "-y", "-i", path_avi, "-c:v", "libx264", "-crf", "28", "-preset", "veryslow", "-c:a", "aac", "-b:a", "128k", path_mp4], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            msg = f"[INFO] Compresión a MP4 Finalizada {path_mp4}"
+            msg = _log_print("INFO",f"Compresión a MP4 Finalizada {path_mp4}")
             logger.info(msg)
-            print(msg)
             if os.path.exists(path_mp4):
                 os.remove(path_avi)
-                msg = "[INFO] Archivo AVI eliminado."
+                msg = _log_print("INFO","Archivo AVI eliminado.")
                 logger.info(msg)
-                print(msg)
             else:
-                msg = "[WARNING] No se creo el archivo MP4 para eliminar el AVI."
+                msg = _log_print("WARNING","No se creo el archivo MP4 para eliminar el AVI.")
                 logger.warning(msg)
-                print(msg)
         except subprocess.CalledProcessError as e:
-            msg = f"[ERROR] Error durante la compresión a MP4: {e}"
+            msg = _log_print("ERROR",f"Error durante la compresión a MP4: {e}")
             logger.error(msg)
-            print(msg)
         except Exception as e:
-            msg = f"[ERROR] Fallo inesperado en la compresión a MP4: {e}"
+            msg = _log_print("ERROR",f"Fallo inesperado en la compresión a MP4: {e}")
             logger.error(msg)
-            print(msg)
 
     def _upload_mp4(self, path_mp4, file_name, url_drive):
         try:
             drive_service = authenticate_drive()
-            msg = "[INFO] Subiendo archivo a Google Drive..."
+            msg = _log_print("INFO","Subiendo archivo a Google Drive...")
             logger.info(msg)
-            print(msg)
             id_drive = upload_file(drive_service, path_mp4, file_name, url_drive)
-            msg = "[INFO] Archivo Subido a Google Drive correctamente."
+            msg = _log_print("INFO","Archivo Subido a Google Drive correctamente.")
             logger.info(msg)
-            print(msg)
             return id_drive
         except Exception as e:
-            msg = f"[ERROR] Fallo inesperado al subir archivo a Google Drive: {e}"
+            msg = _log_print("ERROR",f"Fallo inesperado al subir archivo a Google Drive: {e}")
             logger.error(msg)
-            print(msg)
 
     def _insertar_proceso_p2(self):
         try:
             self.proceso_repo.insertar_nuevo_proceso(tipo_proceso=9, maquina_id=self.maquina_id, cancion_id= self.cancion_id, info_extra = str(self.inicia_digitacion))
-            msg = "[INFO] Proceso: Renderizar KFN Ensayo Parte 2 - Insertado correctamente."
+            msg = _log_print("INFO","Proceso: Renderizar KFN Ensayo Parte 2 - Insertado correctamente.")
             logger.info(msg)
-            print(msg)
         except Exception as e:
-            msg = f"[ERROR] Fallo inesperado al insertar el nuevo proceso: {e}"
+            msg =_log_print("ERROR",f"Fallo inesperado al insertar el nuevo proceso: {e}")
             logger.error(msg)
-            print(msg)
     
     def _verificar_recursos(self):
         try:
@@ -367,24 +338,20 @@ class RenderizaKFNEnsayoP1(BaseProceso):
             path_d = Path(config.get_path_img_fondo())
             path_destino = path_d.parent
             if not os.path.exists(path_zip):
-                msg = f"[ERROR] No se encontró el archivo: {path_zip}"
+                msg = _log_print("ERROR",f"No se encontró el archivo: {path_zip}")
                 logger.error(msg)
-                print(msg)
                 return False
             # Extraer ZIP
-            msg = f"[INFO] Extrayendo {path_zip} a {path_destino}..."
+            msg = _log_print("INFO",f"Extrayendo {path_zip} a {path_destino}...")
             logger.info(msg)
-            print(msg)
             with zipfile.ZipFile(path_zip, 'r') as zip_ref:
                 zip_ref.extractall(path_destino)
             # Eliminar ZIP después de extraer
             os.remove(path_zip)
-            msg = "[INFO] Extracción completada y archivo ZIP eliminado."
+            msg = _log_print("INFO","Extracción completada y archivo ZIP eliminado.")
             logger.info(msg)
-            print(msg)
             return True
         except Exception as e:
-            msg = f"[ERROR] Fallo al verificar/extraer recursos: {e}"
+            msg = _log_print("ERROR",f"Fallo al verificar/extraer recursos: {e}")
             logger.error(msg)
-            print(msg)
             return False

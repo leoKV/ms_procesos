@@ -6,6 +6,7 @@ from ms_procesos import config
 from procesos.models.ArchivoKFUN import ArchivoKFUN
 from procesos.models.FormatKFUN import FormatKFUN
 from procesos.models.TagKFUN import TagKFUN
+from procesos.utils.print import _log_print
 import logging
 from procesos.utils import logs
 logger = logging.getLogger(__name__)
@@ -130,17 +131,15 @@ class KaraokeFunForm:
                 archivo_path = base_path / nombre_archivo
                 tipo = 2
             else:
-                msg = f"[WARNING] Extensión no reconocida para archivo: {nombre_archivo}."
+                msg = _log_print("WARNING",f"Extensión no reconocida para archivo: {nombre_archivo}.")
                 logger.warning(msg)
-                print(msg)
                 continue
             try:
                 archivo_kfun = self._get_file(str(archivo_path), tipo)
                 l.append(archivo_kfun)
             except Exception as e:
-                msg = f"[ERROR] No se pudo agregar el archivo {nombre_archivo}: {e}"
+                msg = _log_print("ERROR",f"No se pudo agregar el archivo {nombre_archivo}: {e}")
                 logger.error(msg)
-                print(msg)
         # Agregar Song.ini
         ini_text = self.song_ini
         length = len(ini_text.encode('utf-8'))
@@ -161,7 +160,8 @@ class KaraokeFunForm:
             with open(path_url, 'rb') as f:
                 bytes = f.read()
         except IOError as e:
-            logger.error("[ERROR] No se pudo leer el archivo en _get_file(): %s", str(e))
+            msg = _log_print("ERROR",f"No se pudo leer el archivo en _get_file: {str(e)}")
+            logger.error(msg)
             bytes = b''
         filename = Path(path_url).name
         archivo = ArchivoKFUN(

@@ -1,4 +1,5 @@
 from django.db import connections
+from procesos.utils.print import _log_print
 import logging
 from procesos.utils import logs
 logger = logging.getLogger(__name__)
@@ -27,10 +28,9 @@ class CancionRepository:
                 "fin": result[7],
             }
         else:
-            logger.warning("[WARNING] No se encontro la información para el proceso con ID: %s", proceso_id)
-            print(f"[WARNING] No se encontro la información para el proceso con ID: {proceso_id}")
+            msg = _log_print("WARNING",f"No se encontro la información para el proceso con ID: {proceso_id}")
+            logger.warning(msg)
             return None
-        
     
     def obtener_datos_renderizar_kfn(self, proceso_id):
         with connections['default'].cursor() as cursor:
@@ -57,8 +57,8 @@ class CancionRepository:
                 "info_extra":result[10]
             }
         else:
-            logger.warning("[WARNING] No se encontro la información para el proceso con ID: %s", proceso_id)
-            print(f"[WARNING] No se encontro la información para el proceso con ID: {proceso_id}")
+            msg = _log_print("WARNING",f"No se encontro la información para el proceso con ID: {proceso_id}")
+            logger.warning(msg)
             return None
     
     # Obtiene el folder padre en el que se van a guardar las canciones.
@@ -69,8 +69,8 @@ class CancionRepository:
         if result:
             return result[0]
         else:
-            logger.warning("[WARNING] No se encontro el link para la carpeta kia_songs")
-            print("[WARNING] No se encontro el link para la carpeta kia_songs")
+            msg = _log_print("WARNING","No se encontro el link para la carpeta kia_songs")
+            logger.warning(msg)
             return ''
     
     # Actualiza la url de la carpeta de drive para la canción.

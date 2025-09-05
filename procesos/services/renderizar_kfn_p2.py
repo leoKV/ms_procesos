@@ -6,10 +6,10 @@ from procesos.repositories.cancion_repository import CancionRepository
 from procesos.repositories.proceso_repository import ProcesoRepository
 from procesos.utils.drive_uploader import authenticate_drive, upload_file, download_file_from_folder
 from ms_procesos import config
+from procesos.utils.print import _log_print
 import logging
 from procesos.utils import logs
 logger = logging.getLogger(__name__)
-
 
 class RenderizaKFNP2(BaseProceso):
     def __init__(self, proceso, contexto_global):
@@ -37,16 +37,16 @@ class RenderizaKFNP2(BaseProceso):
         repo = CancionRepository()
         datos = repo.obtener_datos_renderizar_kfn(self.proceso['id'])
         if not datos:
-            msg = "[ERROR] No se pudieron obtener datos para renderizar Karaoke."
+            msg = _log_print("ERROR","No se pudieron obtener datos para renderizar Karaoke.")
             logger.error(msg)
-            print(msg)
             return
         try:
             self._get_variables(datos)
             self._actualizar_estado_proceso(2,'')
             render_kfn = self._download_render_kfn_p1()
             if not render_kfn:
-                msg = "[WARNING] El archivo Render KFN es requerido."
+                msg = _log_print("WARNING","El archivo Render KFN es requerido.")
+                logger.warning(msg)
                 raise EnvironmentError(msg)
             else:
                 path_caratula_mp4 = self._caratula_mp4()
@@ -54,11 +54,11 @@ class RenderizaKFNP2(BaseProceso):
                     self._add_publicidad(render_kfn)
                 self._karaoke_final(path_caratula_mp4)
                 self._actualizar_estado_proceso(3,'')
+                self._actualizar_porcentaje(100)
         except Exception as e:
-            msg = f"[ERROR] No se pudo renderizar: {str(e)})"
+            msg = _log_print("ERROR",f"No se pudo renderizar: {str(e)}")
             logger.error(msg)
-            print(msg)
-
+            
     #-------- Métodos auxiliares---------
     # Prepara las variables necesarias.
     def _get_variables(self, datos):
@@ -83,62 +83,59 @@ class RenderizaKFNP2(BaseProceso):
     # Actualiza los estados del proceso.
     def _actualizar_estado_proceso(self, estado, msg_error):
         self.proceso_repo.update_estado_proceso(proceso_id=self.proceso_id, cancion_id=self.cancion_id, estado_id=estado, maquina_id=self.maquina_id, msg_error=msg_error)
-        msg = f"[INFO] Estado de proceso actualizado a estado: {estado}"
+        msg = _log_print("INFO",f"Estado de proceso actualizado a estado: {estado}")
         logger.info(msg)
-        print(msg)
         
+    # Actualiza el porcentaje de avance.
+    def _actualizar_porcentaje(self, porcentaje):
+        self.proceso_repo.update_porcentaje_avance(cancion_id= self.cancion_id, porcentaje=porcentaje)
+        msg = _log_print("INFO",f"Porcentaje de Avance Actualizado a: {porcentaje}%")
+        logger.info(msg)
+
     # Descarga el archivo KFN de Google Drive.
     def _download_render_kfn_p1(self):
         try:
             render_kfn = os.path.join(self.path_karaoke, "render_kfn_p1.mp4")
             # Verificar si el archivo ya existe.
             if os.path.exists(render_kfn):
-                msg = f"[INFO] Archivo Render KFN Encontrado: {render_kfn}"
+                msg = _log_print("INFO",f"Archivo Render KFN Encontrado: {render_kfn}")
                 logger.info(msg)
-                print(msg)
                 return render_kfn
             # Si no existe, se descarga de Google Drive.
             os.makedirs(self.path_karaoke, exist_ok=True)
             drive_service = authenticate_drive()
-            msg = f"[INFO] Descargando Archivo Render KFN de Google Drive: {self.drive_key}..."
+            msg = _log_print("INFO",f"Descargando Archivo Render KFN de Google Drive: {self.drive_key}...")
             logger.info(msg)
-            print(msg)
             download_render_kfn = download_file_from_folder(drive_service, "render_kfn_p1.mp4", self.url_drive, os.path.join(self.path_karaoke, "render_kfn_p1"))
             if not download_render_kfn:
-                msg = "[ERROR] No se pudo descargar el archivo Render KFN de Google Drive."
+                msg = _log_print("ERROR","No se pudo descargar el archivo Render KFN de Google Drive.")
                 logger.error(msg)
-                print(msg)
             return download_render_kfn
         except Exception as e:
-            msg = f"[ERROR] No se pudo descargar el archivo Render KFN: {str(e)})"
+            msg = _log_print("ERROR",f"No se pudo descargar el archivo Render KFN: {str(e)}")
             logger.error(msg)
-            print(msg)
-
+            
     def _caratula_mp4(self):
         try:
             path_caratula_mp4 = os.path.join(self.song_dir, "caratula.mp4")
             if os.path.exists(path_caratula_mp4):
-                msg = f"[INFO] Carátula MP4 Encontrada: {path_caratula_mp4}"
+                msg = _log_print("INFO",f"Carátula MP4 Encontrada: {path_caratula_mp4}")
                 logger.info(msg)
-                print(msg)
                 return path_caratula_mp4
             path_caratula = os.path.join(self.song_dir, "caratula.png")
             if not os.path.exists(path_caratula):
-                msg = f"[INFO] Descargando caratula.png de Google Drive: {self.drive_key}"
+                msg = _log_print("INFO",f"Descargando caratula.png de Google Drive: {self.drive_key}")
                 logger.info(msg)
-                print(msg)
                 drive_service = authenticate_drive()
                 download_caratula = download_file_from_folder(drive_service, "caratula.png", self.url_drive, os.path.join(self.song_dir, "caratula"))
                 if not download_caratula:
-                    msg = f"[ERROR] No se pudo descargar la caratula de Google Drive: {self.drive_key}"
+                    msg = _log_print("ERROR",f"No se pudo descargar la caratula de Google Drive: {self.drive_key}")
                     logger.error(msg)
-                    print(msg)
                     return download_caratula
             path_pub = config.get_path_publicidad()
             path_sin_audio = os.path.join(path_pub, "sin_audio.mp3")
-            msg = "[INFO] Conviertiendo Carátula a MP4..."
+            msg = _log_print("INFO","Conviertiendo Carátula a MP4...")
             logger.info(msg)
-            print(msg)
             subprocess.run([
                 "ffmpeg",
                 "-y",
@@ -159,27 +156,23 @@ class RenderizaKFNP2(BaseProceso):
             check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL)
-            msg = f"[INFO] Carátula convertida a MP4: {path_caratula_mp4}"
+            msg = _log_print("INFO",f"Carátula convertida a MP4: {path_caratula_mp4}")
             logger.info(msg)
-            print(msg)
             return path_caratula_mp4
         except subprocess.CalledProcessError as e:
-            msg = f"[ERROR] Error durante la conversión de carátula a MP4: {e}"
+            msg =_log_print("ERROR",f"Error durante la conversión de carátula a MP4: {e}")
             logger.error(msg)
-            print(msg)
         except Exception as e:
-            msg = f"[ERROR] Fallo inesperado al convertir carátula a MP4: {e}"
+            msg = _log_print("ERROR",f"Fallo inesperado al convertir carátula a MP4: {e}")
             logger.error(msg)
-            print(msg)
-
+            
     def _add_publicidad(self, render_kfn):
         try:
             path_pub = config.get_path_publicidad()
             path_end_pub = os.path.join(path_pub, "end_pub.mp4")
             path_pub_out = os.path.join(self.path_karaoke, "render_kfn_p1_pub.mp4")
-            msg = "[INFO] Agregando Publicidad..."
+            msg = _log_print("INFO","Agregando Publicidad...")
             logger.info(msg)
-            print(msg)
             subprocess.run([
                 "ffmpeg",
                 "-y",
@@ -199,28 +192,24 @@ class RenderizaKFNP2(BaseProceso):
             stderr=subprocess.DEVNULL)
             # Reemplazar el archivo original
             os.replace(path_pub_out, render_kfn)
-            msg = "[INFO] Publicidad Agregada correctamente."
+            msg = _log_print("INFO","Publicidad Agregada correctamente.")
             logger.info(msg)
-            print(msg)
         except subprocess.CalledProcessError as e:
-            msg = f"[ERROR] Error al agregar publicidad: {e}"
+            msg = _log_print("ERROR",f"Error al agregar publicidad: {e}")
             logger.error(msg)
-            print(msg)
         except Exception as e:
-            msg = f"[ERROR] Fallo inesperado al agregar publicidad: {e}"
+            msg = _log_print("ERROR",f"Fallo inesperado al agregar publicidad: {e}")
             logger.error(msg)
-            print(msg)
-
+            
     def _karaoke_final(self, path_caratula_mp4):
         try:
-            path_render_kfn_p1 = os.path.join(self.path_karaoke, "render_kfn_p1.mp4")
             # Drive Final
+            path_render_kfn_p1 = os.path.join(self.path_karaoke, "render_kfn_p1.mp4")
             nombre_archivo = f"{self.artista.strip()} - {self.nombre_cancion.strip()} - Karaoke.mp4"
             nombre_archivo = "".join(c for c in nombre_archivo if c not in r'<>:"/\|?*')
             path_karaoke_final = os.path.join(self.path_karaoke, nombre_archivo)
-            msg = "[INFO] Creando Karaoke Final..."
+            msg = _log_print("INFO","Creando Karaoke Final...")
             logger.info(msg)
-            print(msg)
             if self.inicia_digitacion is not None and Decimal(self.inicia_digitacion) <= Decimal('10'):
                 subprocess.run([
                     "ffmpeg",
@@ -253,36 +242,29 @@ class RenderizaKFNP2(BaseProceso):
                 stderr=subprocess.DEVNULL)
             # Subir Karaoke a Google Drive.
             if os.path.exists(path_karaoke_final):
-                msg = "[INFO] Karaoke creado correctamente."
+                msg = _log_print("INFO","Karaoke creado correctamente.")
                 logger.info(msg)
-                print(msg)
-                # Drive Final
+                #Drive Final
                 file_id = self._upload_mp4(path_karaoke_final, nombre_archivo, self.drive_final)
                 self.repo.new_url_drive(self.cancion_id, file_id, 4)
-                msg = "[INFO] URL de Drive actualizada correctamente."
+                msg = _log_print("INFO","URL de Drive actualizada correctamente.")
                 logger.info(msg)
-                print(msg)
         except subprocess.CalledProcessError as e:
-            msg = f"[ERROR] Error al crear Karaoke: {e}"
+            msg = _log_print("ERROR",F"Error al crear Karaoke: {e}")
             logger.error(msg)
-            print(msg)
         except Exception as e:
-            msg = f"[ERROR] Fallo inesperado al crear Karaoke: {e}"
+            msg = _log_print("ERROR",f"Fallo inesperado al crear Karaoke: {e}")
             logger.error(msg)
-            print(msg)
 
     def _upload_mp4(self, path_mp4, file_name, url_drive):
         try:
             drive_service = authenticate_drive()
-            msg = "[INFO] Subiendo archivo a Google Drive..."
+            msg = _log_print("INFO","Subiendo archivo a Google Drive...")
             logger.info(msg)
-            print(msg)
             id_drive = upload_file(drive_service, path_mp4, file_name, url_drive)
-            msg = "[INFO] Archivo Subido a Google Drive correctamente."
+            msg = _log_print("INFO","Archivo Subido a Google Drive correctamente.")
             logger.info(msg)
-            print(msg)
             return id_drive
         except Exception as e:
-            msg = f"[ERROR] Fallo inesperado al subir archivo a Google Drive: {e}"
+            msg = _log_print("ERROR",f"Fallo inesperado al subir archivo a Google Drive: {e}")
             logger.error(msg)
-            print(msg)

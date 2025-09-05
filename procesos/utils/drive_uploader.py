@@ -1,5 +1,4 @@
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
 import io
 import os
 from googleapiclient.errors import HttpError
@@ -8,6 +7,7 @@ from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from google.oauth2 import service_account
 from procesos.repositories.cancion_repository import CancionRepository
 from ms_procesos import config
+from procesos.utils.print import _log_print
 import logging
 from procesos.utils import logs
 logger = logging.getLogger(__name__)
@@ -50,9 +50,8 @@ def upload_file(service, file_path, file_name, folder_id):
             file_id = file["id"]
             service.files().delete(fileId=file_id).execute()
     except HttpError as e:
-        msg = f"[ERROR] Error verificando existencia de archivo: {str(e)}"
+        msg = _log_print("ERROR",f"Error verificando existencia de archivo: {str(e)}")
         logger.error(msg)
-        print(msg)
     # Ahora sube el nuevo archivo
     file_metadata = {"name": file_name, "parents": [folder_id]}
     media = MediaFileUpload(file_path, resumable=False)
@@ -63,14 +62,12 @@ def upload_file(service, file_path, file_name, folder_id):
             fields="id",
             supportsAllDrives=True
         ).execute()
-        msg = f"[INFO] Archivo subido: {file_name}"
+        msg = _log_print("INFO",f"Archivo subido: {file_name}")
         logger.info(msg)
-        print(msg)
         return file.get("id")
     except HttpError as e:
-        msg = f"[ERROR] Error subiendo archivo: {str(e)}"
+        msg = _log_print("ERROR",f"Error subiendo archivo: {str(e)}")
         logger.error(msg)
-        print(msg)
         return None
 
 
@@ -92,12 +89,10 @@ def download_file_from_folder(service, file_name, folder_id, destination_path):
         while not done:
             status, done = downloader.next_chunk()
             if status:
-                msg = f"[INFO] Descargando... {int(status.progress() * 100)}%"
+                msg = _log_print("INFO",f"Descargando... {int(status.progress() * 100)}%")
                 logger.info(msg)
-                print(msg)
-    msg = f"[INFO] Descarga completada: {final_path}"
+    msg = _log_print("INFO",f"Descarga completada: {final_path}")
     logger.info(msg)
-    print(msg)
     return final_path
 
 def download_all_files(song_key, dest_dir):
@@ -106,37 +101,32 @@ def download_all_files(song_key, dest_dir):
         # Paso 1: Obtener ID del folder padre (kia_songs)
         parent_folder_id = CancionRepository().get_parent_folder()
         if not parent_folder_id:
-            msg = "[ERROR] No se pudo obtener la carpeta principal 'kia_songs'."
+            msg = _log_print("ERROR","No se pudo obtener la carpeta principal 'kia_songs'.")
             logger.error(msg)
-            print(msg)
         # Paso 2: Buscar la carpeta cuyo nombre sea igual a la key
         query = f"'{parent_folder_id}' in parents and name = '{song_key}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
         response = service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()  # pylint: disable=no-member
         folders = response.get('files', [])
         if not folders:
-            msg = f"[ERROR] No se encontró la carpeta con key {song_key} en Google Drive."
+            msg = _log_print("ERROR",f"No se encontró la carpeta con key {song_key} en Google Drive.")
             logger.error(msg)
-            print(msg)
         folder_id = folders[0]['id']
         # Paso 3: Obtener todos los archivos dentro de la carpeta
         query = f"'{folder_id}' in parents and trashed = false"
         response = service.files().list(q=query, spaces='drive', fields='files(id, name, modifiedTime)').execute() # pylint: disable=no-member
         files = response.get('files', [])
         if not files:
-            msg = f"[WARNING] No se encontraron archivos en la carpeta {song_key} en Google Drive."
+            msg = _log_print("WARNING",f"No se encontraron archivos en la carpeta {song_key} en Google Drive.")
             logger.info(msg)
-            print(msg)
         # Paso 4: Descargar todos los archivos
         with ThreadPoolExecutor(max_workers=10) as executor:
             for file in files:
                 executor.submit(download_file, file, dest_dir)
-        msg = f"[INFO] Archivos descargados para la key {song_key}"
+        msg = _log_print("INFO",f"Archivos descargados para la key {song_key}")
         logger.info(msg)
-        print(msg)
     except HttpError as error:
-        msg = f"[ERROR] Error al acceder a Google Drive: {error}"
+        msg = _log_print("ERROR",f"Error al acceder a Google Drive: {error}")
         logger.error(msg)
-        print(msg)
 
 def download_file(file, dest_dir):
     file_name = file['name']
@@ -157,13 +147,11 @@ def download_file(file, dest_dir):
         done = False
         while not done:
             done = downloader.next_chunk()
-        msg = f"[INFO] Archivo {file_name} descargado en: {local_path}"
+        msg = _log_print("INFO",f"Archivo {file_name} descargado en: {local_path}")
         logger.info(msg)
-        print(msg)
     except Exception as e:
-        msg = f"[ERROR] Error al descargar {file_name}, {str(e)}"
+        msg = _log_print("ERROR",f"Error al descargar {file_name}, {str(e)}")
         logger.error(msg)
-        print(msg)
 
 # Elimina archivos de una carpeta de Google Drive cuyo nombre contenga un texto específico.
 def delete_drive_file(service, folder_id, filename_contains):
@@ -189,16 +177,14 @@ def get_or_create_folder_by_name(service, folder_name, parent_folder_id, cancion
         folders = results.get('files', [])
         if folders:
             # Si ya existe, devuelve el ID
-            msg = f"[INFO] Carpeta encontrada: {folders[0]['id']}"
+            msg = _log_print("INFO",f"Carpeta encontrada: {folders[0]['id']}")
             logger.info(msg)
-            print(msg)
             return folders[0]['id']
         else:
             # Si no existe, la recrea con el mismo nombre de la Key
             repo = CancionRepository()
-            msg = "[WARNING] Carpeta no encontrada, recreando carpeta..."
+            msg = _log_print("WARNING","Carpeta no encontrada, recreando carpeta...")
             logger.warning(msg)
-            print(msg)
             file_metadata = {
                 'name': folder_name,
                 'mimeType': 'application/vnd.google-apps.folder',
@@ -209,15 +195,13 @@ def get_or_create_folder_by_name(service, folder_name, parent_folder_id, cancion
                 fields='id',
                 supportsAllDrives=True
             ).execute()
-            msg = "[INFO] Carpeta recreada correctamente."
+            msg = _log_print("INFO","Carpeta recreada correctamente.")
             logger.info(msg)
-            print(msg)
             new_url_drive = folder['id']
             # Actualiza la url de la carpeta en la base de datos.
             repo.update_url_drive(cancion_id=cancion_id, new_url_drive=new_url_drive)
             return new_url_drive
     except HttpError as e:
-        msg = f"[ERROR] Error al buscar o crear carpeta: {str(e)}"
+        msg = _log_print("ERROR",f"Error al buscar o crear carpeta: {str(e)}")
         logger.error(msg)
-        print(msg)
         return None
