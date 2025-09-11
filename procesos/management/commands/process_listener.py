@@ -37,6 +37,8 @@ class Command(BaseCommand):
         proceso_repository = ProcesoRepository()
         maquina_service.cargar_info_maquina()
 
+        waiting = False
+
         while True:
             # Obtener tiempo de ejecución dinámico
             tiempo_espera = proceso_repository.get_tiempo_ejecucion()
@@ -45,6 +47,8 @@ class Command(BaseCommand):
             # Obtener procesos nuevos
             procesos = proceso_repository.get_nuevos_procesos()
             if procesos:
+                if waiting:
+                    waiting = False
                 msg = _log_print("INFO",f"{len(procesos)} Nuevo(s) procesos detectado(s).")
                 logger.info(msg)
                 # Agrupar por tipo
@@ -54,7 +58,6 @@ class Command(BaseCommand):
                     if tipo not in procesos_por_tipo:
                         procesos_por_tipo[tipo] = []
                     procesos_por_tipo[tipo].append(proceso)
-
                 # Procesar cada tipo
                 for tipo, procesos_tipo in procesos_por_tipo.items():
                     if not maquina_service.puede_procesar(tipo):
@@ -67,7 +70,7 @@ class Command(BaseCommand):
                     logger.info(msg)
                     # Crear contexto global por tipo de proceso
                     contexto_global = None
-                    if tipo == 1:
+                    if tipo in (1, 10):
                         contexto_global = self._crear_contexto_remover_voz()
                     elif tipo in (6, 7, 8, 9):
                         contexto_global = self._crear_contexto_renderizar_kfn()
@@ -78,7 +81,7 @@ class Command(BaseCommand):
                         batch_nombres = [p['nombre_cancion'] for p in batch]
                         msg = _log_print("INFO",f"Procesando lote: {batch_ids}")
                         logger.info(msg)
-                        msg = _log_print("INFO",f"Procesando Canción: {batch_nombres}")
+                        msg = _log_print("INFO",f"Procesando Cancion(es): {batch_nombres}")
                         logger.info(msg)
                         with ThreadPoolExecutor(max_workers=max_ejecuciones) as executor:
                             futures = [executor.submit(self._procesar_proceso, p, contexto_global) for p in batch]
@@ -90,6 +93,11 @@ class Command(BaseCommand):
                                     logger.error(msg)
                         msg = _log_print("INFO","Lote Procesado.")
                         logger.info(msg)
+            else:
+                if not waiting:
+                    msg = _log_print("INFO","Esperando Nuevos Procesos.")
+                    logger.info(msg)
+                    waiting = True
             time.sleep(tiempo_espera)
 
     def _procesar_proceso(self, proceso, contexto_global=None):
@@ -100,7 +108,7 @@ class Command(BaseCommand):
         except Exception as e:
             msg = _log_print("ERROR",f"Error al procesar proceso ID={proceso.id}: {str(e)}")
             logger.error(msg)
-    # Contexto - Proceso 1 - Remover Voz.
+    # Contexto - Proceso 1 - Remover Voz y Proceso 10 - Descargar Canción.
     def _crear_contexto_remover_voz(self):
         songs_dir = config.get_path_main()
         os.makedirs(songs_dir, exist_ok=True)

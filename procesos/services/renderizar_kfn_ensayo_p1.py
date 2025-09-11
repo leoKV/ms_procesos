@@ -323,7 +323,7 @@ class RenderizaKFNEnsayoP1(BaseProceso):
             msg = _log_print("INFO","Proceso: Renderizar KFN Ensayo Parte 2 - Insertado correctamente.")
             logger.info(msg)
         except Exception as e:
-            msg =_log_print("ERROR",f"Fallo inesperado al insertar el nuevo proceso: {e}")
+            msg =_log_print("ERROR",f"Fallo inesperado al Insertar el nuevo proceso: {e}")
             logger.error(msg)
     
     def _verificar_recursos(self):
