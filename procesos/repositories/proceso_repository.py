@@ -13,10 +13,12 @@ class ProcesoRepository:
             {
                 "id": row[0],
                 "tipo_proceso_id": row[1],
-                "estado_proceso_id": row[2]
+                "estado_proceso_id": row[2],
+                "nombre_cancion":row[3]
             }
             for row in procesos
         ]
+    
     # Obtiene el intervalo de tiempo en que se tiene que comprobar si hay nuevos procesos.
     def get_tiempo_ejecucion(self):
         with connections['default'].cursor() as cursor:
@@ -27,6 +29,7 @@ class ProcesoRepository:
         else:
             return 5
         
+    # Obtiene el modelo demucs que hay que utilizar.
     def get_modelo_demucs(self):
         with connections['default'].cursor()  as cursor:
             cursor.execute("select * from public.sps_modelo_demucs()")
@@ -35,7 +38,8 @@ class ProcesoRepository:
             return result[0]
         else:
             return 'mdx_extra'
-    
+        
+    # Obtiene el porcentaje minimo de Digitación.
     def get_porcentaje_kfn(self):
         with connections['default'].cursor()  as cursor:
             cursor.execute("select * from public.sps_porcentaje_kfn()")
@@ -54,7 +58,7 @@ class ProcesoRepository:
                 """,
                 [proceso_id, cancion_id, estado_id, maquina_id, msg_error]
             )
-
+    # Actualiza el porcentaje de avance de la canción.
     def update_porcentaje_avance(self, cancion_id, porcentaje):
         with connections['default'].cursor() as cursor:
             cursor.execute(
@@ -64,6 +68,7 @@ class ProcesoRepository:
                 [ cancion_id, porcentaje]
             )
     
+    # Inserta un nuevo proceso para Renderización: Parte 1 y Parte 2.
     def insertar_nuevo_proceso(self, tipo_proceso, maquina_id, cancion_id, info_extra):
         with connections['default'].cursor() as cursor:
             cursor.execute(

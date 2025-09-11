@@ -75,7 +75,10 @@ class Command(BaseCommand):
                     for i in range(0, len(procesos_tipo), max_ejecuciones):
                         batch = procesos_tipo[i:i + max_ejecuciones]
                         batch_ids = [p['id'] for p in batch]
+                        batch_nombres = [p['nombre_cancion'] for p in batch]
                         msg = _log_print("INFO",f"Procesando lote: {batch_ids}")
+                        logger.info(msg)
+                        msg = _log_print("INFO",f"Procesando Canción: {batch_nombres}")
                         logger.info(msg)
                         with ThreadPoolExecutor(max_workers=max_ejecuciones) as executor:
                             futures = [executor.submit(self._procesar_proceso, p, contexto_global) for p in batch]
@@ -83,15 +86,10 @@ class Command(BaseCommand):
                                 try:
                                     future.result()
                                 except Exception as e:
-                                    msg = _log_print("ERROR",f"Un proceso en el lote falló: {str(e)}")
+                                    msg = _log_print("ERROR",f"Un proceso falló: {str(e)}")
                                     logger.error(msg)
                         msg = _log_print("INFO","Lote Procesado.")
                         logger.info(msg)
-            else:
-                msg = _log_print("INFO","No hay nuevos procesos.")
-                logger.info(msg)
-            msg = _log_print("INFO",f"Esperando {tiempo_espera} segundos antes de la siguiente verificación...\n")
-            logger.info(msg)
             time.sleep(tiempo_espera)
 
     def _procesar_proceso(self, proceso, contexto_global=None):
