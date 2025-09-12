@@ -14,7 +14,8 @@ class ProcesoRepository:
                 "id": row[0],
                 "tipo_proceso_id": row[1],
                 "estado_proceso_id": row[2],
-                "nombre_cancion":row[3]
+                "nombre_cancion":row[3],
+                "artista":row[4]
             }
             for row in procesos
         ]

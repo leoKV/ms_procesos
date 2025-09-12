@@ -79,9 +79,11 @@ class Command(BaseCommand):
                         batch = procesos_tipo[i:i + max_ejecuciones]
                         batch_ids = [p['id'] for p in batch]
                         batch_nombres = [p['nombre_cancion'] for p in batch]
+                        batch_artistas = [p['artista'] for p in batch]
+                        batch_canciones = [f"{n} - {a}" for n, a in zip(batch_nombres, batch_artistas)]
                         msg = _log_print("INFO",f"Procesando lote: {batch_ids}")
                         logger.info(msg)
-                        msg = _log_print("INFO",f"Procesando Cancion(es): {batch_nombres}")
+                        msg = _log_print("INFO",f"Procesando Cancion(es): {batch_canciones}")
                         logger.info(msg)
                         with ThreadPoolExecutor(max_workers=max_ejecuciones) as executor:
                             futures = [executor.submit(self._procesar_proceso, p, contexto_global) for p in batch]
@@ -91,7 +93,7 @@ class Command(BaseCommand):
                                 except Exception as e:
                                     msg = _log_print("ERROR",f"Un proceso falló: {str(e)}")
                                     logger.error(msg)
-                        msg = _log_print("INFO","Lote Procesado.")
+                        msg = _log_print("INFO","Lote Procesado.\n")
                         logger.info(msg)
             else:
                 if not waiting:

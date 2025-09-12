@@ -116,7 +116,9 @@ class DescargarCancion(BaseProceso):
                 'preferredcodec': 'mp3',
                 'preferredquality': '192',
             }],
-            'quiet': False,
+            'quiet': True,
+            'no_warnings':True,
+            'logtostderr': False
         }
         output_template += ".mp3"
         final_path += ".mp3"
