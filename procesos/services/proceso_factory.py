@@ -15,12 +15,11 @@ class ProcesoFactory:
         9: RenderizaKFNEnsayoP2,
         10: DescargarCancion
     }
-
     @staticmethod
     def get_handler(proceso, contexto_global=None):
         tipo = proceso["tipo_proceso_id"]
         handler_class = ProcesoFactory._handlers.get(tipo)
         if not handler_class:
-            _log_print("WARNING",f"Proceso tipo {tipo} no implementado todavía. Proceso ID={proceso['id']} se omite.")
+            _log_print("WARNING",f"El tipo de proceso: {tipo} aún no se implementa.")
             return None
         return handler_class(proceso, contexto_global)

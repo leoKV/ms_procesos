@@ -36,7 +36,6 @@ class Command(BaseCommand):
         maquina_service = MaquinaInfoService()
         proceso_repository = ProcesoRepository()
         maquina_service.cargar_info_maquina()
-
         waiting = False
 
         while True:

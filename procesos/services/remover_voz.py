@@ -2,7 +2,7 @@ import os
 from procesos.services.base_proceso import BaseProceso
 from procesos.repositories.cancion_repository import CancionRepository
 from procesos.repositories.proceso_repository import ProcesoRepository
-from procesos.utils.drive_uploader import authenticate_drive, get_or_create_folder_by_name, upload_file
+from procesos.utils.drive_uploader import authenticate_drive, get_or_create_folder_by_name, upload_file, download_file_from_folder
 import demucs.separate
 import shutil
 from procesos.utils.print import _log_print
@@ -27,7 +27,7 @@ class RemoverVozProceso(BaseProceso):
         self.folder_drive = None
         self.modelo_demucs = None
         self.cancion_dir = None
-    
+
     #-------- Método Principal---------
     def procesar(self):
         repo = CancionRepository()
@@ -70,26 +70,28 @@ class RemoverVozProceso(BaseProceso):
         self.modelo_demucs = self.proceso_repo.get_modelo_demucs()
         self.cancion_dir = os.path.join(self.songs_dir, str(self.drive_key))
         os.makedirs(self.cancion_dir, exist_ok=True)
-    
+
     # Actualiza los estados del proceso.
     def _actualizar_estado_proceso(self, estado, msg_error):
         self.proceso_repo.update_estado_proceso(proceso_id=self.proceso_id, cancion_id=self.cancion_id, estado_id=estado, maquina_id=self.maquina_id, msg_error=msg_error)
         msg = _log_print("INFO",f"Estado de proceso actualizado a estado: {estado}")
         logger.info(msg)
-    
+
     # Actualiza el porcentaje de avance.
     def _actualizar_porcentaje(self, porcentaje):
         self.proceso_repo.update_porcentaje_avance(cancion_id= self.cancion_id, porcentaje=porcentaje)
         msg = _log_print("INFO",f"Porcentaje de Avance Actualizado a: {porcentaje}%")
         logger.info(msg)
-    
+
     # Separa las voces y la instrumental.
     def _separar_voces(self) -> bool:
         main_path = os.path.join(self.cancion_dir, 'main.mp3')
         if not os.path.isfile(main_path):
-            msg = _log_print("ERROR",f"No se encontró el Audio main.mp3 para: {self.nombre_cancion}")
-            logger.error(msg)
-            return False
+            main_path = download_file_from_folder(self.drive_service, "main.mp3", self.folder_drive, os.path.join(self.cancion_dir, "main"))
+            if not main_path:
+                msg = _log_print("ERROR",f"No se encontró el Audio main.mp3 en local y en Drive: {self.nombre_cancion}")
+                logger.error(msg)
+                return False
         os.path.join(self.songs_dir, str(self.drive_key))
         cmd = ["--mp3", "--two-stems", "vocals", "-n", self.modelo_demucs, "--out", self.cancion_dir, main_path]
         # Ajustes específicos para mdx_extra
@@ -106,7 +108,7 @@ class RemoverVozProceso(BaseProceso):
             msg = _log_print("ERROR",f"Error en Separación de Audio: {str(e)}")
             logger.error(msg)
             return False
-      
+
     # Sube los archivos de audio vocals.mp3 y no_vocals.mp3 a Google Drive.
     def _subir_archivos(self):
         # Refresca la conexión a Google Drive.
