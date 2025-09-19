@@ -8,6 +8,7 @@ from procesos.services.base_proceso import BaseProceso
 from procesos.repositories.cancion_repository import CancionRepository
 from procesos.repositories.proceso_repository import ProcesoRepository
 from procesos.utils.KaraokeFUNForm import KaraokeFunForm
+from procesos.utils.KaraokeFunForm2 import KaraokeFunForm2
 from procesos.utils.drive_uploader import authenticate_drive, upload_file, download_file_from_folder, download_all_files
 from ms_procesos import config
 from procesos.utils.KFNDumper import KFNDumper
@@ -30,6 +31,8 @@ class RenderizaKFNEnsayoP1(BaseProceso):
         self.cancion_id = None
         self.drive_key = None
         self.url_drive = None
+        self.render_ini = None
+        self.fondo = None
         self.path_songs_kfn = None
         self.song_dir = None
         self.archivos_kfn = None
@@ -46,20 +49,22 @@ class RenderizaKFNEnsayoP1(BaseProceso):
             self._get_variables(datos)
             self._actualizar_estado_proceso(2,'')
             self._download_files()
-            archivo_kfn = self._search_kfn()
+            if self.render_ini:
+                archivo_kfn = self._recrear_kfn()
+            else:
+                archivo_kfn = self._search_kfn()
             if not archivo_kfn:
                 msg = _log_print("WARNING","El archivo KFN es requerido.")
                 raise EnvironmentError(msg)
+            song_ini = self._get_song_ini(archivo_kfn)
+            digitacion = self._validar_digitacion(song_ini)
+            if digitacion:
+                self._verificar_recursos()
+                self._kfn_karaoke()
+                self._actualizar_estado_proceso(3,'')
+                self._actualizar_porcentaje(80)
             else:
-                song_ini = self._get_song_ini(archivo_kfn)
-                digitacion = self._validar_digitacion(song_ini)
-                if digitacion:
-                    self._verificar_recursos()
-                    self._kfn_karaoke()
-                    self._actualizar_estado_proceso(3,'')
-                    self._actualizar_porcentaje(80)
-                else:
-                    self._actualizar_estado_proceso(4,'No se ha iniciado la digitación en el proyecto KFN.')
+                self._actualizar_estado_proceso(4,'No se ha iniciado la digitación en el proyecto KFN.')
         except Exception as e:
             msg = _log_print("ERROR",f"No se pudo renderizar: {str(e)}")
             logger.error(msg)
@@ -83,6 +88,8 @@ class RenderizaKFNEnsayoP1(BaseProceso):
         self.cancion_id = datos['cancion_id']
         self.drive_key = datos['drive_key']
         self.url_drive = datos['url_drive']
+        self.render_ini = datos['render_ini']
+        self.fondo = datos['fondo']
         self.path_songs_kfn = config.get_path_songs_kfn()
         self.song_dir = os.path.join(self.path_songs_kfn, self.drive_key)
         self.archivos_kfn = {}
@@ -120,19 +127,72 @@ class RenderizaKFNEnsayoP1(BaseProceso):
                 logger.info(msg)
                 return archivo_kfn
             # Si no existe, intenta volver a descargarlo de Google Drive.
-            else:
-                os.makedirs(self.song_dir, exist_ok=True)
-                drive_service = authenticate_drive()
-                msg = _log_print("INFO",f"Descargando Archivo KFN de Google Drive: {self.drive_key}...")
-                logger.info(msg)
-                download_kfn = download_file_from_folder(drive_service, "kara_fun.kfn", self.url_drive, os.path.join(self.song_dir, "kara_fun"))
-                if not download_kfn:
-                    msg = _log_print("ERROR","No se pudo descargar el archivo KFN de Google Drive.")
-                    logger.error(msg)
-                return download_kfn
+            os.makedirs(self.song_dir, exist_ok=True)
+            drive_service = authenticate_drive()
+            msg = _log_print("INFO",f"Descargando Archivo KFN de Google Drive: {self.drive_key}...")
+            logger.info(msg)
+            download_kfn = download_file_from_folder(drive_service, "kara_fun.kfn", self.url_drive, os.path.join(self.song_dir, "kara_fun"))
+            if not download_kfn:
+                msg = _log_print("ERROR","No se pudo descargar el archivo KFN de Google Drive.")
+                logger.error(msg)
+            return download_kfn
         except Exception as e:
             msg = _log_print("ERROR",f"No se pudo descargar el archivo Karafun: {str(e)}")
             logger.error(msg)
+
+    # Recrear el archivo KFN a partir del Song.ini
+    def _recrear_kfn(self):
+        try:
+            # Obtener Song.ini
+            datos = self.repo.get_song_ini(self.cancion_id)
+            if not datos:
+                msg = _log_print("ERROR","No se pudieron obtener datos de Songini.")
+                logger.error(msg)
+                return False
+            song_ini = datos.get("songini")
+            if not song_ini:
+                msg = _log_print("ERROR", "No se encontró el Song.ini en la base de datos.")
+                logger.error(msg)
+                return False
+            exts_validas = {'.mp3'}
+            archivos_dir = [
+                f for f in os.listdir(self.song_dir)
+                if os.path.isfile(os.path.join(self.song_dir, f)) and os.path.splitext(f)[1].lower() in exts_validas
+            ]
+            nuevo_audio = None
+            if "con_voz.mp3" in archivos_dir:
+                nuevo_audio = "con_voz.mp3"
+            elif "main.mp3" in archivos_dir:
+                nuevo_audio = "main.mp3"
+            if not nuevo_audio:
+                msg = _log_print("ERROR", "No se encontró un archivo de audio.")
+                logger.error(msg)
+                return False
+            path_audio = os.path.join(self.song_dir, nuevo_audio)
+            base_img = config.get_path_img_fondo()
+            img_fondo = None
+            if self.fondo:
+                img_fondo = os.path.join(base_img, self.fondo)
+                if not os.path.isfile(img_fondo):
+                    msg = _log_print("WARN", f"Imagen del cliente no encontrada: {img_fondo}.")
+                    logger.warning(msg)
+                    img_fondo = os.path.join(base_img, 'Fondo Karaoke IA_sin_logo.jpg')
+            else:
+                img_fondo = os.path.join(base_img, 'Fondo Karaoke IA_sin_logo.jpg')
+            kfun = KaraokeFunForm2(path_audio, song_ini, img_fondo)
+            result = kfun.genera_archivo_kfun()
+            if result[0] == "0":
+                msg = _log_print("INFO", f"{result[1]}")
+                logger.info(msg)
+                path_kfn = result[2]
+                return path_kfn
+            msg = _log_print("ERROR","No se pudo recrear el archivo KFN con el Song.ini")
+            logger.error(msg)
+            return False
+        except Exception as e:
+            msg = _log_print("ERROR",f"No se pudo recrear el archivo Karafun: {str(e)}")
+            logger.error(msg)
+            return False
     
     def _get_song_ini(self, archivo_kfn):
         try:

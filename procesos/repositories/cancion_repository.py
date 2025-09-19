@@ -15,7 +15,6 @@ class CancionRepository:
                 [proceso_id]
             )
             result = cursor.fetchone()
-
         if result:
             return {
                 "proceso_id": result[0],
@@ -27,11 +26,10 @@ class CancionRepository:
                 "inicio": result[6],
                 "fin": result[7],
             }
-        else:
-            msg = _log_print("WARNING",f"No se encontro la información para el proceso con ID: {proceso_id}")
-            logger.warning(msg)
-            return None
-    
+        msg = _log_print("WARNING",f"No se encontro la información para el proceso con ID: {proceso_id}")
+        logger.warning(msg)
+        return None
+
     def obtener_datos_renderizar_kfn(self, proceso_id):
         with connections['default'].cursor() as cursor:
             cursor.execute(
@@ -41,7 +39,6 @@ class CancionRepository:
                 [proceso_id]
             )
             result = cursor.fetchone()
-
         if result:
             return {
                 "proceso_id": result[0],
@@ -54,13 +51,14 @@ class CancionRepository:
                 "url_drive": result[7],
                 "drive_final": result[8],
                 "drive_ensayo": result[9],
-                "info_extra":result[10]
+                "info_extra":result[10],
+                "render_ini":result[11],
+                "fondo":result[12]
             }
-        else:
-            msg = _log_print("WARNING",f"No se encontro la información para el proceso con ID: {proceso_id}")
-            logger.warning(msg)
-            return None
-    
+        msg = _log_print("WARNING",f"No se encontro la información para el proceso con ID: {proceso_id}")
+        logger.warning(msg)
+        return None
+
     # Obtiene el folder padre en el que se van a guardar las canciones.
     def get_parent_folder(self):
         with connections['default'].cursor() as cursor:
@@ -68,11 +66,10 @@ class CancionRepository:
             result = cursor.fetchone()
         if result:
             return result[0]
-        else:
-            msg = _log_print("WARNING","No se encontro el link para la carpeta kia_songs")
-            logger.warning(msg)
-            return ''
-    
+        msg = _log_print("WARNING","No se encontro el link para la carpeta kia_songs")
+        logger.warning(msg)
+        return ''
+
     # Actualiza la url de la carpeta de drive para la canción.
     def update_url_drive(self, cancion_id, new_url_drive):
         with connections['default'].cursor() as cursor:
@@ -91,3 +88,21 @@ class CancionRepository:
                 """,
                 [cancion_id, new_url_drive, tipo_url]
             )
+
+    def get_song_ini(self, cancion_id):
+        with connections['default'].cursor() as cursor:
+            cursor.execute(
+                """
+                select * from public.sps_song_ini(%s)
+                """,
+                [cancion_id]
+            )
+            result = cursor.fetchone()
+        if result:
+            return {
+                "songini": result[0],
+                "letra": result[1]
+            }
+        msg = _log_print("WARNING",f"No se encontro Song.ini para la canción con ID: {cancion_id}")
+        logger.warning(msg)
+        return None
