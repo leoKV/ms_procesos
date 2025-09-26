@@ -2,11 +2,32 @@ import os
 import sys
 import django
 from django.core.management import call_command
+from django.conf import settings
 
 def mostrar_banner():
+    """Muestra un banner con la información del microservicio"""
     print("\n" + "="*50, flush=True)
     print("   Microservicio MS_Procesos   ", flush=True)
     print("="*50 + "\n", flush=True)
+
+def mostrar_informacion_modo():
+    """Muestra información sobre el modo de ejecución actual"""
+    execution_mode = getattr(settings, 'EXECUTION_MODE', 'desarrollo')
+    db_config_valid = getattr(settings, 'DB_CONFIG_VALID', True)
+
+    print(f"[INFO] Modo de ejecución: {execution_mode.upper()}", flush=True)
+
+    if execution_mode == 'desarrollo':
+        print("[INFO] Configuración: Usando settings.py", flush=True)
+    else:
+        print("[INFO] Configuración: Usando config.json", flush=True)
+
+    if db_config_valid:
+        print("[INFO] Base de datos: Configuración válida", flush=True)
+    else:
+        print("[ERROR] Base de datos: Configuración inválida", flush=True)
+
+    print(flush=True)
 
 def main():
     # Configurar Django
@@ -15,7 +36,8 @@ def main():
     try:
         django.setup()
         mostrar_banner()
-        print("Iniciando listener de procesos...", flush=True)
+        mostrar_informacion_modo()
+        print("Iniciando listener de procesos", flush=True)
 
         # Ejecutar el listener permanentemente
         call_command('process_listener')
