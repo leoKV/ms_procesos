@@ -8,6 +8,13 @@ from tkinter import ttk
 import json
 from pathlib import Path
 
+# Importar BASE_DIR del config del proyecto
+try:
+    from ms_procesos.config import BASE_DIR
+except ImportError:
+    # Fallback si no se puede importar
+    BASE_DIR = Path(__file__).resolve().parent
+
 # Constantes Windows para ocultar consola del subproceso
 CREATE_NO_WINDOW = 0x08000000 if os.name == 'nt' else 0
 
@@ -23,10 +30,12 @@ def obtener_configuracion_bd():
     if not getattr(sys, 'frozen', False):
         return None
 
-    # Buscar config.json en la carpeta del ejecutable
+    # Buscar config.json en múltiples ubicaciones
     possible_paths = [
+        BASE_DIR / "config.json",                    # Base del proyecto
         Path.cwd() / "config.json",                    # Carpeta actual
         Path(sys.executable).parent / "config.json",   # Carpeta del .exe
+        Path(__file__).parent / "config.json"         # Carpeta del archivo actual
     ]
 
     config_file = None

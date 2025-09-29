@@ -5,12 +5,32 @@ from django.core.management import call_command
 from django.conf import settings
 from interfaz import iniciar_interfaz
 
+# Verificación de procesos duplicados para evitar logs duplicados
+def verificar_procesos_duplicados():
+    """Verifica si ya hay otra instancia de main.py ejecutándose"""
+    try:
+        import psutil
+        current_pid = os.getpid()
+        current_process_name = "python.exe" if os.name == 'nt' else "python"
+
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                if proc.info['pid'] != current_pid and proc.info['name'] == current_process_name:
+                    if any('main.py' in str(arg) for arg in proc.info.get('cmdline', [])):
+                        print("[WARNING] Ya hay otra instancia de main.py ejecutándose")
+                        return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        return False
+    except ImportError:
+        # Si psutil no está disponible, continuar sin verificación
+        return False
+
 def mostrar_banner():
     """Muestra un banner con la información del microservicio"""
     print("\n" + "="*50, flush=True)
     print("   Microservicio MS_Procesos   ", flush=True)
     print("="*50 + "\n", flush=True)
-
 def mostrar_informacion_modo():
     """Muestra información sobre el modo de ejecución actual"""
     execution_mode = getattr(settings, 'EXECUTION_MODE', 'desarrollo')
@@ -51,6 +71,10 @@ def main():
         sys.exit(1)
 
 if __name__ == '__main__':
+    # Verificar si ya hay otra instancia ejecutándose
+    if not getattr(sys, 'frozen', False) and verificar_procesos_duplicados():
+        sys.exit(0)
+
     # Si está empaquetado con PyInstaller y se especifica --solo-servidor, ejecutar listener
     if getattr(sys, 'frozen', False) and '--solo-servidor' in sys.argv:
         main()
