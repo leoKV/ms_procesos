@@ -5,9 +5,53 @@ import threading
 import queue
 import tkinter as tk
 from tkinter import ttk
+import json
+from pathlib import Path
 
 # Constantes Windows para ocultar consola del subproceso
 CREATE_NO_WINDOW = 0x08000000 if os.name == 'nt' else 0
+
+# Versión del microservicio
+VERSION = "1.0.0"
+
+def obtener_configuracion_bd():
+    """
+    Obtiene la configuración de BD desde config.json
+    Retorna None si no está en modo ejecución o hay error
+    """
+    # Solo funciona en modo ejecución (empaquetado)
+    if not getattr(sys, 'frozen', False):
+        return None
+
+    # Buscar config.json en la carpeta del ejecutable
+    possible_paths = [
+        Path.cwd() / "config.json",                    # Carpeta actual
+        Path(sys.executable).parent / "config.json",   # Carpeta del .exe
+    ]
+
+    config_file = None
+    for path in possible_paths:
+        if path.exists():
+            config_file = path
+            break
+
+    if not config_file:
+        return None
+
+    try:
+        with open(config_file, "r", encoding="utf-8") as f:
+            config = json.load(f)
+
+        # Validar campos requeridos
+        if not all(key in config for key in ["HOST", "PORT"]):
+            return None
+
+        return {
+            "host": config["HOST"],
+            "port": config["PORT"]
+        }
+    except Exception:
+        return None
 
 class InterfazMicroservicio:
     def __init__(self, raiz: tk.Tk):
@@ -23,6 +67,11 @@ class InterfazMicroservicio:
         self.cola_salida = queue.Queue()
         self.hilo_lector = None
         self.esta_encendido = False
+
+        # Variables para información de conexión y versión
+        self.info_labels = {}
+        self.config_anterior = None
+        self.monitoreo_activo = False
 
         self._construir_ui()
         self._programar_refresco_logs()
@@ -43,6 +92,10 @@ class InterfazMicroservicio:
             style='Switch.TCheckbutton'
         )
         self.boton_switch.pack(side=tk.LEFT)
+
+        # Agregar información de conexión y versión en modo ejecución
+        if getattr(sys, 'frozen', False):
+            self._crear_labels_info(marco_top)
 
         # Area de logs con scrollbar
         marco_logs = ttk.Frame(self.raiz, padding=(10, 5, 10, 10))
@@ -68,6 +121,88 @@ class InterfazMicroservicio:
         scroll_x.pack(side=tk.BOTTOM, fill=tk.X)
         self.texto.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
+
+    def _crear_labels_info(self, parent_frame):
+        """Crea los labels para mostrar información de conexión y versión"""
+        # Frame para la información (parte derecha del marco superior)
+        marco_info = ttk.Frame(parent_frame)
+        marco_info.pack(side=tk.RIGHT, padx=(20, 0))
+
+        # Label para versión
+        lbl_version = ttk.Label(
+            marco_info,
+            text=f"Versión: {VERSION}",
+            font=('Segoe UI', 9),
+            foreground='#ffffff',
+            background='#2b2b2b'
+        )
+        lbl_version.pack(anchor=tk.NE, pady=(0, 2))
+        self.info_labels['version'] = lbl_version
+
+        # Label para host
+        lbl_host = ttk.Label(
+            marco_info,
+            text="Host: Cargando...",
+            font=('Segoe UI', 9),
+            foreground='#cccccc',
+            background='#2b2b2b'
+        )
+        lbl_host.pack(anchor=tk.NE, pady=(0, 2))
+        self.info_labels['host'] = lbl_host
+
+        # Label para puerto
+        lbl_port = ttk.Label(
+            marco_info,
+            text="Puerto: Cargando...",
+            font=('Segoe UI', 9),
+            foreground='#cccccc',
+            background='#2b2b2b'
+        )
+        lbl_port.pack(anchor=tk.NE)
+        self.info_labels['port'] = lbl_port
+
+        # Actualizar información inicial
+        self._actualizar_info_conexion()
+
+    def _actualizar_info_conexion(self):
+        """Actualiza la información de conexión desde config.json"""
+        config_actual = obtener_configuracion_bd()
+
+        # Si no hay configuración o no hay labels, salir
+        if not config_actual or not self.info_labels:
+            return
+
+        # Verificar si la configuración ha cambiado
+        if self.config_anterior == config_actual:
+            return
+
+        # Actualizar labels
+        if 'host' in self.info_labels:
+            self.info_labels['host'].config(text=f"Host: {config_actual['host']}")
+
+        if 'port' in self.info_labels:
+            self.info_labels['port'].config(text=f"Puerto: {config_actual['port']}")
+
+        # Guardar configuración actual para comparar cambios
+        self.config_anterior = config_actual.copy()
+
+        # Programar próxima verificación en 2 segundos
+        if not self.monitoreo_activo:
+            self._iniciar_monitoreo_config()
+
+    def _iniciar_monitoreo_config(self):
+        """Inicia el monitoreo de cambios en config.json"""
+        if self.monitoreo_activo:
+            return
+
+        self.monitoreo_activo = True
+        self._programar_verificacion_config()
+
+    def _programar_verificacion_config(self):
+        """Programa la próxima verificación de config.json"""
+        if self.raiz and self.raiz.winfo_exists():
+            self._actualizar_info_conexion()
+            self.raiz.after(2000, self._programar_verificacion_config)  # Verificar cada 2 segundos
 
     def _iniciar_automaticamente(self):
         """Inicia el microservicio automáticamente al abrir la aplicación"""
