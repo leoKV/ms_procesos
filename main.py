@@ -3,6 +3,7 @@ import sys
 import django
 from django.core.management import call_command
 from django.conf import settings
+from interfaz import iniciar_interfaz
 
 def mostrar_banner():
     """Muestra un banner con la información del microservicio"""
@@ -50,4 +51,12 @@ def main():
         sys.exit(1)
 
 if __name__ == '__main__':
-    main()
+    # Si está empaquetado con PyInstaller y se especifica --solo-servidor, ejecutar listener
+    if getattr(sys, 'frozen', False) and '--solo-servidor' in sys.argv:
+        main()
+    # Si está empaquetado con PyInstaller sin argumentos especiales, iniciar la interfaz
+    elif getattr(sys, 'frozen', False):
+        iniciar_interfaz()
+    else:
+        # En modo desarrollo, ejecutar el listener directamente
+        main()

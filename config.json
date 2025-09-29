@@ -1,8 +1,8 @@
 {
   "ENGINE": "django.db.backends.postgresql",
-  "NAME": "nombre_base_de_datos",
+  "NAME": "kia1",
   "USER": "postgres",
-  "PASSWORD": "contraseña",
+  "PASSWORD": "cesar0428",
   "HOST": "localhost",
   "PORT": "5432"
 }
