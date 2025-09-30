@@ -161,7 +161,19 @@ class RenderizaKFNEnsayoP1(BaseProceso):
             ]
             nuevo_audio = None
             if "con_voz.mp3" in archivos_dir:
+                kfn = KFNDumper(self.song_dir + "\\kara_fun.kfn")
+                l = kfn.list()
                 nuevo_audio = "con_voz.mp3"
+
+                for entry in l:
+                    path_entry = self.song_dir+"\\"+entry.filename
+                    archivo = Path(path_entry)
+                    if archivo.exists():
+                        continue
+                    msg = _log_print("INFO",f"Extrae archivos de .kfn {entry}")
+                    logger.info(msg)
+                    kfn.extract_to_file(entry, path_entry) 
+
             elif "main.mp3" in archivos_dir:
                 nuevo_audio = "main.mp3"
             if not nuevo_audio:

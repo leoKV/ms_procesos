@@ -55,16 +55,19 @@ class KFNDumper:
 
     def extract_to_file(self, entry, outfilename: str):
         self.m_file.seek(entry.offset)
-        with open(outfilename, "wb") as output:
-            buffer_size = 8192
-            total_read = 0
-            while total_read < entry.length1:
-                to_read = min(buffer_size, entry.length1 - total_read)
-                data = self.m_file.read(to_read)
-                if not data:
-                    break
-                output.write(data)
-                total_read += len(data)
+        try:
+            with open(outfilename, "wb") as output:
+                buffer_size = 8192
+                total_read = 0
+                while total_read < entry.length1:
+                    to_read = min(buffer_size, entry.length1 - total_read)
+                    data = self.m_file.read(to_read)
+                    if not data:
+                        break
+                    output.write(data)
+                    total_read += len(data)
+        except OSError as e:
+            print(f"Error al crear el archivo '{outfilename}': {e}")
 
     def extract(self, entry) -> bytes:
         self.m_file.seek(entry.offset)
