@@ -12,14 +12,10 @@ from pathlib import Path
 try:
     from ms_procesos.config import BASE_DIR
 except ImportError:
-    # Fallback si no se puede importar
     BASE_DIR = Path(__file__).resolve().parent
 
 # Constantes Windows para ocultar consola del subproceso
 CREATE_NO_WINDOW = 0x08000000 if os.name == 'nt' else 0
-
-# Versión del microservicio
-VERSION = "1.0.0"
 
 def obtener_configuracion_bd():
     """
@@ -51,15 +47,75 @@ def obtener_configuracion_bd():
         with open(config_file, "r", encoding="utf-8") as f:
             config = json.load(f)
 
-        # Validar campos requeridos
-        if not all(key in config for key in ["HOST", "PORT"]):
+        # Verificar estructura mínima requerida
+        if not isinstance(config, dict):
+            return None
+
+        database_config = config.get("database")
+        if not isinstance(database_config, dict):
+            return None
+
+        host = database_config.get("HOST")
+        port = database_config.get("PORT")
+
+        if not host or not port:
             return None
 
         return {
-            "host": config["HOST"],
-            "port": config["PORT"]
+            "host": str(host),
+            "port": str(port)
         }
-    except Exception:
+    except (json.JSONDecodeError, IOError, KeyError, TypeError):
+        return None
+
+
+def obtener_configuracion_version():
+    """
+    Obtiene la configuración de versión desde config.json
+    Retorna None si no está en modo ejecución o hay error
+    """
+    # Solo funciona en modo ejecución (empaquetado)
+    if not getattr(sys, 'frozen', False):
+        return None
+
+    # Buscar config.json en múltiples ubicaciones
+    possible_paths = [
+        BASE_DIR / "config.json",                    # Base del proyecto
+        Path.cwd() / "config.json",                    # Carpeta actual
+        Path(sys.executable).parent / "config.json",   # Carpeta del .exe
+        Path(__file__).parent / "config.json"         # Carpeta del archivo actual
+    ]
+
+    config_file = None
+    for path in possible_paths:
+        if path.exists():
+            config_file = path
+            break
+
+    if not config_file:
+        return None
+
+    try:
+        with open(config_file, "r", encoding="utf-8") as f:
+            config = json.load(f)
+
+        # Verificar estructura mínima requerida
+        if not isinstance(config, dict):
+            return None
+
+        microservicio_config = config.get("microservicio")
+        if not isinstance(microservicio_config, dict):
+            return None
+
+        version = microservicio_config.get("version")
+        if not version:
+            return None
+
+        return {
+            "version": str(version),  # Asegurar que sea string
+            "nombre": str(microservicio_config.get("nombre", "ms_procesos"))
+        }
+    except (json.JSONDecodeError, IOError, KeyError, TypeError):
         return None
 
 class InterfazMicroservicio:
@@ -138,9 +194,11 @@ class InterfazMicroservicio:
         marco_info.pack(side=tk.RIGHT, padx=(20, 0))
 
         # Label para versión
+        config_version = obtener_configuracion_version()
+        version_text = config_version.get("version", "1.0.0") if config_version else "1.0.0"
         lbl_version = ttk.Label(
             marco_info,
-            text=f"Versión: {VERSION}",
+            text=f"Versión: {version_text}",
             font=('Segoe UI', 9),
             foreground='#ffffff',
             background='#2b2b2b'
