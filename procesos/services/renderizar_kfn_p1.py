@@ -50,6 +50,7 @@ class RenderizaKFNP1(BaseProceso):
             self._actualizar_estado_proceso(2,'')
             self._download_files()
             if self.render_ini:
+                # Recrear el archivo KFN apartir del Song.ini
                 archivo_kfn = self._recrear_kfn()
             else:
                 archivo_kfn = self._search_kfn()
@@ -263,7 +264,18 @@ class RenderizaKFNP1(BaseProceso):
             # Elegir archivo de audio
             nuevo_audio = None
             if "sin_voz" in self.archivos_kfn:
+                kfn = KFNDumper(self.song_dir + "\\kara_fun.kfn")
+                l = kfn.list()
                 nuevo_audio = self.archivos_kfn["sin_voz"]
+                for entry in l:
+                    path_entry = self.song_dir+"\\"+entry.filename
+                    archivo = Path(path_entry)
+                    if archivo.exists():
+                        continue
+                    msg = _log_print("INFO",f"Extrae archivos de .kfn {entry}")
+                    logger.info(msg)
+                    kfn.extract_to_file(entry, path_entry) 
+
             elif "no_vocals" in self.archivos_kfn:
                 nuevo_audio = self.archivos_kfn["no_vocals"]
             if nuevo_audio:
