@@ -1,0 +1,13 @@
+{
+  "microservicio": {
+    "version": "1.0.0"
+  },
+  "database": {
+    "ENGINE": "django.db.backends.postgresql",
+    "NAME": "kia2",
+    "USER": "postgres",
+    "PASSWORD": "cesar0428",
+    "HOST": "localhost",
+    "PORT": "5432"
+  }
+}
