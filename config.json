@@ -1,11 +1,10 @@
 {
   "microservicio": {
-    "version": "1.0.0",
-    "nombre": "ms_procesos"
+    "version": "1.0.0"
   },
   "database": {
     "ENGINE": "django.db.backends.postgresql",
-    "NAME": "kia1",
+    "NAME": "kia2",
     "USER": "postgres",
     "PASSWORD": "cesar0428",
     "HOST": "localhost",

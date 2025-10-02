@@ -158,10 +158,6 @@ class InterfazMicroservicio:
         )
         self.boton_switch.pack(side=tk.LEFT)
 
-        # Agregar información de conexión y versión en modo ejecución
-        if getattr(sys, 'frozen', False):
-            self._crear_labels_info(marco_top)
-
         # Area de logs con scrollbar
         marco_logs = ttk.Frame(self.raiz, padding=(10, 5, 10, 10))
         marco_logs.pack(fill=tk.BOTH, expand=True)
@@ -173,10 +169,10 @@ class InterfazMicroservicio:
             height=30,
             width=120,
             font=('Consolas', 10),
-            bg='#2b2b2b',  # Fondo oscuro
+            bg='#092912',  # Fondo oscuro
             fg='#ffffff',  # Texto blanco
             insertbackground='#ffffff',  # Cursor visible
-            selectbackground='#3a3a3a',
+            selectbackground='#092912',
             selectforeground='#ffffff'
         )
         scroll_y = ttk.Scrollbar(marco_logs, orient=tk.VERTICAL, command=self.texto.yview)
@@ -187,45 +183,53 @@ class InterfazMicroservicio:
         self.texto.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
 
+        # Marco inferior para información de conexión y versión (DESPUÉS de marco_logs)
+        # Usar pack_propagate(False) para mantener siempre visible
+        marco_inferior = ttk.Frame(self.raiz, padding=(10, 5, 10, 10))
+        marco_inferior.pack(fill=tk.X, side=tk.BOTTOM, before=marco_logs)
+
+        # Agregar información de conexión y versión en modo ejecución
+        if getattr(sys, 'frozen', False):
+            self._crear_labels_info(marco_inferior)
+
     def _crear_labels_info(self, parent_frame):
         """Crea los labels para mostrar información de conexión y versión"""
-        # Frame para la información (parte derecha del marco superior)
+        # Frame para la información (parte derecha del marco inferior)
         marco_info = ttk.Frame(parent_frame)
         marco_info.pack(side=tk.RIGHT, padx=(20, 0))
 
-        # Label para versión
+        # Label para versión (ahora mostrará toda la información en línea)
         config_version = obtener_configuracion_version()
         version_text = config_version.get("version", "1.0.0") if config_version else "1.0.0"
         lbl_version = ttk.Label(
             marco_info,
-            text=f"Versión: {version_text}",
+            text=f"Versión: {version_text} | Host: Cargando... | Puerto: Cargando...",
             font=('Segoe UI', 9),
             foreground='#ffffff',
-            background='#2b2b2b'
+            background='#092912'
         )
-        lbl_version.pack(anchor=tk.NE, pady=(0, 2))
+        lbl_version.pack(side=tk.LEFT)
         self.info_labels['version'] = lbl_version
 
-        # Label para host
+        # Los otros labels ya no son necesarios, pero mantener para compatibilidad
         lbl_host = ttk.Label(
             marco_info,
-            text="Host: Cargando...",
+            text="",
             font=('Segoe UI', 9),
             foreground='#cccccc',
-            background='#2b2b2b'
+            background='#092912'
         )
-        lbl_host.pack(anchor=tk.NE, pady=(0, 2))
+        lbl_host.pack(side=tk.LEFT)
         self.info_labels['host'] = lbl_host
 
-        # Label para puerto
         lbl_port = ttk.Label(
             marco_info,
-            text="Puerto: Cargando...",
+            text="",
             font=('Segoe UI', 9),
             foreground='#cccccc',
-            background='#2b2b2b'
+            background='#092912'
         )
-        lbl_port.pack(anchor=tk.NE)
+        lbl_port.pack(side=tk.LEFT)
         self.info_labels['port'] = lbl_port
 
         # Actualizar información inicial
@@ -243,12 +247,12 @@ class InterfazMicroservicio:
         if self.config_anterior == config_actual:
             return
 
-        # Actualizar labels
-        if 'host' in self.info_labels:
-            self.info_labels['host'].config(text=f"Host: {config_actual['host']}")
-
-        if 'port' in self.info_labels:
-            self.info_labels['port'].config(text=f"Puerto: {config_actual['port']}")
+        # Actualizar labels con formato en línea
+        if 'version' in self.info_labels and 'host' in self.info_labels and 'port' in self.info_labels:
+            # Obtener información de versión actualizada
+            config_version_actual = obtener_configuracion_version()
+            version_text = f"Versión: {config_version_actual.get('version', '1.0.0')}" if config_version_actual else "Versión: 1.0.0"
+            self.info_labels['version'].config(text=f"{version_text} | Host: {config_actual['host']} | Puerto: {config_actual['port']}")
 
         # Guardar configuración actual para comparar cambios
         self.config_anterior = config_actual.copy()
@@ -384,7 +388,7 @@ class InterfazMicroservicio:
                 estilo.theme_use('clam')
             except tk.TclError:
                 pass
-            color_bg = '#2b2b2b'
+            color_bg = '#092912'
             color_fg = '#ffffff'
             # Fondo raíz
             self.raiz.configure(bg=color_bg)
@@ -400,7 +404,7 @@ class InterfazMicroservicio:
                              padding=(10, 6))
             estilo.map('Switch.TCheckbutton',
                        foreground=[('disabled', '#aaaaaa'), ('!disabled', color_fg)],
-                       background=[('active', '#3a3a3a')])
+                       background=[('active', '#092912')])
         except Exception:
             pass
 
@@ -428,7 +432,7 @@ class InterfazMicroservicio:
 
 def iniciar_interfaz():
     raiz = tk.Tk()
-    raiz.configure(bg='#2b2b2b')  # Fondo negro
+    raiz.configure(bg='#092912')  # Fondo negro
     app = InterfazMicroservicio(raiz)
     raiz.protocol("WM_DELETE_WINDOW", app.cerrar_interfaz)
     raiz.mainloop()
@@ -436,4 +440,3 @@ def iniciar_interfaz():
 
 if __name__ == '__main__':
     iniciar_interfaz()
-
