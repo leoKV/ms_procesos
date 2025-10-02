@@ -1,3 +1,6 @@
+"""
+Interfaz gráfica del microservicio MS_Procesos
+"""
 import sys
 import os
 import subprocess
@@ -5,118 +8,16 @@ import threading
 import queue
 import tkinter as tk
 from tkinter import ttk
-import json
 from pathlib import Path
+from utilidades_config import (
+    obtener_configuracion_bd,
+    obtener_configuracion_version,
+    es_modo_ejecucion
+)
 
-# Importar BASE_DIR del config del proyecto
-try:
-    from ms_procesos.config import BASE_DIR
-except ImportError:
-    BASE_DIR = Path(__file__).resolve().parent
+# Constante para ocultar consola en Windows
+CREAR_SIN_VENTANA = 0x08000000 if os.name == 'nt' else 0
 
-# Constantes Windows para ocultar consola del subproceso
-CREATE_NO_WINDOW = 0x08000000 if os.name == 'nt' else 0
-
-def obtener_configuracion_bd():
-    """
-    Obtiene la configuración de BD desde config.json
-    Retorna None si no está en modo ejecución o hay error
-    """
-    # Solo funciona en modo ejecución (empaquetado)
-    if not getattr(sys, 'frozen', False):
-        return None
-
-    # Buscar config.json en múltiples ubicaciones
-    possible_paths = [
-        BASE_DIR / "config.json",                    # Base del proyecto
-        Path.cwd() / "config.json",                    # Carpeta actual
-        Path(sys.executable).parent / "config.json",   # Carpeta del .exe
-        Path(__file__).parent / "config.json"         # Carpeta del archivo actual
-    ]
-
-    config_file = None
-    for path in possible_paths:
-        if path.exists():
-            config_file = path
-            break
-
-    if not config_file:
-        return None
-
-    try:
-        with open(config_file, "r", encoding="utf-8") as f:
-            config = json.load(f)
-
-        # Verificar estructura mínima requerida
-        if not isinstance(config, dict):
-            return None
-
-        database_config = config.get("database")
-        if not isinstance(database_config, dict):
-            return None
-
-        host = database_config.get("HOST")
-        port = database_config.get("PORT")
-
-        if not host or not port:
-            return None
-
-        return {
-            "host": str(host),
-            "port": str(port)
-        }
-    except (json.JSONDecodeError, IOError, KeyError, TypeError):
-        return None
-
-
-def obtener_configuracion_version():
-    """
-    Obtiene la configuración de versión desde config.json
-    Retorna None si no está en modo ejecución o hay error
-    """
-    # Solo funciona en modo ejecución (empaquetado)
-    if not getattr(sys, 'frozen', False):
-        return None
-
-    # Buscar config.json en múltiples ubicaciones
-    possible_paths = [
-        BASE_DIR / "config.json",                    # Base del proyecto
-        Path.cwd() / "config.json",                    # Carpeta actual
-        Path(sys.executable).parent / "config.json",   # Carpeta del .exe
-        Path(__file__).parent / "config.json"         # Carpeta del archivo actual
-    ]
-
-    config_file = None
-    for path in possible_paths:
-        if path.exists():
-            config_file = path
-            break
-
-    if not config_file:
-        return None
-
-    try:
-        with open(config_file, "r", encoding="utf-8") as f:
-            config = json.load(f)
-
-        # Verificar estructura mínima requerida
-        if not isinstance(config, dict):
-            return None
-
-        microservicio_config = config.get("microservicio")
-        if not isinstance(microservicio_config, dict):
-            return None
-
-        version = microservicio_config.get("version")
-        if not version:
-            return None
-
-        return {
-            "version": str(version),  # Asegurar que sea string
-            "nombre": str(microservicio_config.get("nombre", "ms_procesos"))
-        }
-    except (json.JSONDecodeError, IOError, KeyError, TypeError):
-        return None
 
 class InterfazMicroservicio:
     def __init__(self, raiz: tk.Tk):
@@ -124,44 +25,49 @@ class InterfazMicroservicio:
         self.raiz.title("Microservicio Ms_Procesos")
         self.raiz.geometry("500x300")
         self.raiz.resizable(True, True)
-        # Tema oscuro e icono
+        
         self._aplicar_tema_oscuro()
         self._establecer_icono()
-
+        
+        # Estado del microservicio
         self.proceso = None
         self.cola_salida = queue.Queue()
-        self.hilo_lector = None
         self.esta_encendido = False
-
-        # Variables para información de conexión y versión
-        self.info_labels = {}
+        
+        # Monitoreo de configuración
         self.config_anterior = None
-        self.monitoreo_activo = False
-
+        self.info_labels = {}
+        
         self._construir_ui()
         self._programar_refresco_logs()
-        
-        # Iniciar el microservicio automáticamente al abrir la aplicación
         self.raiz.after(1000, self._iniciar_automaticamente)
-
+    
     def _construir_ui(self):
+        """Construye la interfaz de usuario"""
+        # Marco superior con botón de encendido/apagado
         marco_top = ttk.Frame(self.raiz, padding=(10, 10, 10, 5))
         marco_top.pack(fill=tk.X)
-
+        
         self.var_estado = tk.BooleanVar(value=False)
         self.boton_switch = ttk.Checkbutton(
             marco_top,
             text="Apagado",
             variable=self.var_estado,
-            command=self._toggle_microservicio,
+            command=self._alternar_microservicio,
             style='Switch.TCheckbutton'
         )
         self.boton_switch.pack(side=tk.LEFT)
-
-        # Area de logs con scrollbar
+        
+        # Marco inferior con información (antes del área de logs)
+        if es_modo_ejecucion():
+            marco_inferior = ttk.Frame(self.raiz, padding=(10, 5, 10, 10))
+            marco_inferior.pack(fill=tk.X, side=tk.BOTTOM)
+            self._crear_labels_info(marco_inferior)
+        
+        # Área de logs con scrollbars
         marco_logs = ttk.Frame(self.raiz, padding=(10, 5, 10, 10))
         marco_logs.pack(fill=tk.BOTH, expand=True)
-
+        
         self.texto = tk.Text(
             marco_logs,
             wrap=tk.NONE,
@@ -169,270 +75,244 @@ class InterfazMicroservicio:
             height=30,
             width=120,
             font=('Consolas', 10),
-            bg='#092912',  # Fondo oscuro
-            fg='#ffffff',  # Texto blanco
-            insertbackground='#ffffff',  # Cursor visible
+            bg='#092912',
+            fg='#ffffff',
+            insertbackground='#ffffff',
             selectbackground='#092912',
             selectforeground='#ffffff'
         )
+        
         scroll_y = ttk.Scrollbar(marco_logs, orient=tk.VERTICAL, command=self.texto.yview)
         scroll_x = ttk.Scrollbar(marco_logs, orient=tk.HORIZONTAL, command=self.texto.xview)
         self.texto.configure(yscrollcommand=scroll_y.set, xscrollcommand=scroll_x.set)
-        # Empaquetar primero el scroll horizontal para reservar espacio en la parte inferior
+        
         scroll_x.pack(side=tk.BOTTOM, fill=tk.X)
         self.texto.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
-
-        # Marco inferior para información de conexión y versión (DESPUÉS de marco_logs)
-        # Usar pack_propagate(False) para mantener siempre visible
-        marco_inferior = ttk.Frame(self.raiz, padding=(10, 5, 10, 10))
-        marco_inferior.pack(fill=tk.X, side=tk.BOTTOM, before=marco_logs)
-
-        # Agregar información de conexión y versión en modo ejecución
-        if getattr(sys, 'frozen', False):
-            self._crear_labels_info(marco_inferior)
-
-    def _crear_labels_info(self, parent_frame):
+    
+    def _crear_labels_info(self, marco_padre):
         """Crea los labels para mostrar información de conexión y versión"""
-        # Frame para la información (parte derecha del marco inferior)
-        marco_info = ttk.Frame(parent_frame)
+        marco_info = ttk.Frame(marco_padre)
         marco_info.pack(side=tk.RIGHT, padx=(20, 0))
-
-        # Label para versión (ahora mostrará toda la información en línea)
+        
         config_version = obtener_configuracion_version()
-        version_text = config_version.get("version", "1.0.0") if config_version else "1.0.0"
-        lbl_version = ttk.Label(
+        version_texto = config_version.get("version", "1.0.0") if config_version else "1.0.0"
+        
+        self.info_labels['info'] = ttk.Label(
             marco_info,
-            text=f"Versión: {version_text} | Host: Cargando... | Puerto: Cargando...",
+            text=f"Versión: {version_texto} | Host: Cargando... | Puerto: Cargando...",
             font=('Segoe UI', 9),
             foreground='#ffffff',
             background='#092912'
         )
-        lbl_version.pack(side=tk.LEFT)
-        self.info_labels['version'] = lbl_version
-
-        # Los otros labels ya no son necesarios, pero mantener para compatibilidad
-        lbl_host = ttk.Label(
-            marco_info,
-            text="",
-            font=('Segoe UI', 9),
-            foreground='#cccccc',
-            background='#092912'
-        )
-        lbl_host.pack(side=tk.LEFT)
-        self.info_labels['host'] = lbl_host
-
-        lbl_port = ttk.Label(
-            marco_info,
-            text="",
-            font=('Segoe UI', 9),
-            foreground='#cccccc',
-            background='#092912'
-        )
-        lbl_port.pack(side=tk.LEFT)
-        self.info_labels['port'] = lbl_port
-
-        # Actualizar información inicial
+        self.info_labels['info'].pack(side=tk.LEFT)
+        
         self._actualizar_info_conexion()
-
+        self._programar_monitoreo_config()
+    
     def _actualizar_info_conexion(self):
-        """Actualiza la información de conexión desde config.json"""
-        config_actual = obtener_configuracion_bd()
-
-        # Si no hay configuración o no hay labels, salir
-        if not config_actual or not self.info_labels:
+        """Actualiza la información de conexión y versión desde config.json"""
+        config_bd = obtener_configuracion_bd()
+        config_version = obtener_configuracion_version()
+        
+        if not config_bd or not self.info_labels:
             return
-
-        # Verificar si la configuración ha cambiado
-        if self.config_anterior == config_actual:
+        
+        # Solo actualizar si cambió la configuración
+        if self.config_anterior == config_bd:
             return
-
-        # Actualizar labels con formato en línea
-        if 'version' in self.info_labels and 'host' in self.info_labels and 'port' in self.info_labels:
-            # Obtener información de versión actualizada
-            config_version_actual = obtener_configuracion_version()
-            version_text = f"Versión: {config_version_actual.get('version', '1.0.0')}" if config_version_actual else "Versión: 1.0.0"
-            self.info_labels['version'].config(text=f"{version_text} | Host: {config_actual['host']} | Puerto: {config_actual['port']}")
-
-        # Guardar configuración actual para comparar cambios
-        self.config_anterior = config_actual.copy()
-
-        # Programar próxima verificación en 2 segundos
-        if not self.monitoreo_activo:
-            self._iniciar_monitoreo_config()
-
-    def _iniciar_monitoreo_config(self):
-        """Inicia el monitoreo de cambios en config.json"""
-        if self.monitoreo_activo:
-            return
-
-        self.monitoreo_activo = True
-        self._programar_verificacion_config()
-
-    def _programar_verificacion_config(self):
-        """Programa la próxima verificación de config.json"""
+        
+        version_texto = config_version.get('version', '1.0.0') if config_version else '1.0.0'
+        texto_completo = f"Versión: {version_texto} | Host: {config_bd['host']} | Puerto: {config_bd['port']}"
+        
+        if 'info' in self.info_labels:
+            self.info_labels['info'].config(text=texto_completo)
+        
+        self.config_anterior = config_bd.copy()
+    
+    def _programar_monitoreo_config(self):
+        """Programa la verificación periódica de cambios en config.json"""
         if self.raiz and self.raiz.winfo_exists():
             self._actualizar_info_conexion()
-            self.raiz.after(2000, self._programar_verificacion_config)  # Verificar cada 2 segundos
-
+            self.raiz.after(2000, self._programar_monitoreo_config)
+    
     def _iniciar_automaticamente(self):
         """Inicia el microservicio automáticamente al abrir la aplicación"""
         if not self.esta_encendido:
             self.var_estado.set(True)
-            self.encender_microservicio()
+            self._encender_microservicio()
     
-    def _toggle_microservicio(self):
+    def _alternar_microservicio(self):
+        """Alterna entre encender y apagar el microservicio"""
         if self.var_estado.get():
-            self.encender_microservicio()
+            self._encender_microservicio()
         else:
-            self.apagar_microservicio()
-
-    def encender_microservicio(self):
+            self._apagar_microservicio()
+    
+    def _encender_microservicio(self):
+        """Inicia el proceso del microservicio"""
         if self.esta_encendido:
             return
+        
         try:
-            cmd = self._obtener_comando_servidor()
+            comando = self._obtener_comando_servidor()
             self._escribir_log("[INFO] Microservicio Iniciado\n")
-            # Forzar salida sin buffer del subproceso para que los prints se vean en tiempo real
+            
             entorno = os.environ.copy()
             entorno["PYTHONUNBUFFERED"] = "1"
+            
             self.proceso = subprocess.Popen(
-                cmd,
+                comando,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 bufsize=1,
                 universal_newlines=True,
-                creationflags=CREATE_NO_WINDOW,
+                creationflags=CREAR_SIN_VENTANA,
                 env=entorno
             )
+            
             self.esta_encendido = True
             self.boton_switch.config(text="Encendido")
-            self.hilo_lector = threading.Thread(target=self._leer_salida_servidor, daemon=True)
-            self.hilo_lector.start()
+            
+            hilo_lector = threading.Thread(target=self._leer_salida_servidor, daemon=True)
+            hilo_lector.start()
+            
         except Exception as e:
-            self._escribir_log(f"[ERROR] No se pudo iniciar el microservicio: {e}\n")
+            self._escribir_log(f"[ERROR] No se pudo iniciar: {e}\n")
             self.var_estado.set(False)
             self.boton_switch.config(text="Apagado")
             self.esta_encendido = False
-
-    def apagar_microservicio(self):
+    
+    def _apagar_microservicio(self):
+        """Detiene el proceso del microservicio"""
         if not self.esta_encendido:
             return
+        
         try:
             self._escribir_log("[INFO] Microservicio Detenido\n")
+            
             if self.proceso and self.proceso.poll() is None:
                 self.proceso.terminate()
                 try:
                     self.proceso.wait(timeout=5)
                 except Exception:
                     self.proceso.kill()
+            
             self.esta_encendido = False
             self.boton_switch.config(text="Apagado")
+            
         except Exception as e:
             self._escribir_log(f"[ERROR] No se pudo detener: {e}\n")
         finally:
             self.proceso = None
             self.var_estado.set(False)
-
-    def _obtener_comando_servidor(self):
-        # En modo empaquetado (PyInstaller)
-        if getattr(sys, 'frozen', False):
-            # Usar el mismo ejecutable pero con argumentos específicos para modo servidor
+    
+    def _obtener_comando_servidor(self) -> list:
+        """Retorna el comando para iniciar el servidor según el modo de ejecución"""
+        if es_modo_ejecucion():
             return [sys.executable, "--modo=servidor", "--solo-servidor"]
         else:
-            # Desarrollo: usar el mismo intérprete para ejecutar main.py
             ruta_main = os.path.join(os.path.dirname(__file__), 'main.py')
             return [sys.executable, ruta_main, "--modo=servidor"]
-
+    
     def _leer_salida_servidor(self):
+        """Lee la salida del proceso del servidor en un hilo separado"""
         try:
             if not self.proceso or not self.proceso.stdout:
                 return
+            
             for linea in self.proceso.stdout:
                 self.cola_salida.put(linea)
         except Exception as e:
-            self.cola_salida.put(f"[ERROR lector] {e}\n")
-
+            self.cola_salida.put(f"[ERROR] {e}\n")
+    
     def _programar_refresco_logs(self):
+        """Programa el refresco periódico de los logs"""
         self._drenar_cola_logs()
         self.raiz.after(100, self._programar_refresco_logs)
-
+    
     def _drenar_cola_logs(self):
+        """Drena la cola de logs y los muestra en la interfaz"""
         try:
             while True:
                 linea = self.cola_salida.get_nowait()
                 self._escribir_log(linea)
         except queue.Empty:
             pass
-
+    
     def _escribir_log(self, texto: str):
+        """Escribe un mensaje en el área de logs"""
         self.texto.configure(state=tk.NORMAL)
         self.texto.insert(tk.END, texto)
         self.texto.see(tk.END)
-        # Limitar a máximo 1000 líneas en pantalla
+        
+        # Limitar a 1000 líneas
         try:
             total_lineas = int(self.texto.index('end-1c').split('.')[0])
             if total_lineas > 1000:
-                # Borrar las líneas más antiguas dejando solo las últimas 1000
-                inicio_borrado = f"1.0"
-                fin_borrado = f"{total_lineas - 1000}.0"
-                self.texto.delete(inicio_borrado, fin_borrado)
+                self.texto.delete("1.0", f"{total_lineas - 1000}.0")
         except Exception:
             pass
+        
         self.texto.configure(state=tk.DISABLED)
-
+    
     def _aplicar_tema_oscuro(self):
+        """Aplica el tema oscuro a la interfaz"""
         try:
             estilo = ttk.Style(self.raiz)
             try:
                 estilo.theme_use('clam')
             except tk.TclError:
                 pass
-            color_bg = '#092912'
-            color_fg = '#ffffff'
-            # Fondo raíz
-            self.raiz.configure(bg=color_bg)
-            # Estilos base
-            estilo.configure('TFrame', background=color_bg)
-            estilo.configure('TLabel', background=color_bg, foreground=color_fg)
-            estilo.configure('TScrollbar', background=color_bg)
-            # Switch
-            estilo.configure('Switch.TCheckbutton',
-                             font=('Segoe UI', 11, 'bold'),
-                             background=color_bg,
-                             foreground=color_fg,
-                             padding=(10, 6))
-            estilo.map('Switch.TCheckbutton',
-                       foreground=[('disabled', '#aaaaaa'), ('!disabled', color_fg)],
-                       background=[('active', '#092912')])
+            
+            color_fondo = '#092912'
+            color_texto = '#ffffff'
+            
+            self.raiz.configure(bg=color_fondo)
+            estilo.configure('TFrame', background=color_fondo)
+            estilo.configure('TLabel', background=color_fondo, foreground=color_texto)
+            estilo.configure('TScrollbar', background=color_fondo)
+            estilo.configure(
+                'Switch.TCheckbutton',
+                font=('Segoe UI', 11, 'bold'),
+                background=color_fondo,
+                foreground=color_texto,
+                padding=(10, 6)
+            )
+            estilo.map(
+                'Switch.TCheckbutton',
+                foreground=[('disabled', '#aaaaaa'), ('!disabled', color_texto)],
+                background=[('active', color_fondo)]
+            )
         except Exception:
             pass
-
+    
     def _establecer_icono(self):
-        """Establece el icono kia.ico con PyInstaller."""
+        """Establece el icono de la ventana"""
         try:
-            if getattr(sys, 'frozen', False):
+            if es_modo_ejecucion():
                 base = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
                 ruta_icono = os.path.join(base, 'kia.ico')
             else:
                 ruta_icono = os.path.join(os.path.dirname(__file__), 'kia.ico')
+            
             if os.path.exists(ruta_icono):
                 self.raiz.iconbitmap(ruta_icono)
         except Exception:
-            # En plataformas no Windows, iconbitmap con .ico puede no aplicar
             pass
-
+    
     def cerrar_interfaz(self):
-        # Al cerrar la ventana, apaga el microservicio
+        """Cierra la interfaz y detiene el microservicio"""
         try:
-            self.apagar_microservicio()
+            self._apagar_microservicio()
         finally:
             self.raiz.destroy()
 
 
 def iniciar_interfaz():
+    """Punto de entrada para iniciar la interfaz gráfica"""
     raiz = tk.Tk()
-    raiz.configure(bg='#092912')  # Fondo negro
+    raiz.configure(bg='#092912')
     app = InterfazMicroservicio(raiz)
     raiz.protocol("WM_DELETE_WINDOW", app.cerrar_interfaz)
     raiz.mainloop()

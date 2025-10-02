@@ -26,6 +26,7 @@ a = Analysis(
         ('.env', '.'),
         ('kia.ico', '.'),
         ('requirements.txt', '.'),
+        ('utilidades_config.py', '.'),
         ('credentials/credentials.json', 'credentials/'),
         ('resources/render_kfn.ahk', 'resources/'),
         ('resources/resources.zip', 'resources/'),
