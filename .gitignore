@@ -65,3 +65,5 @@ ms_procesos/settings.py
 build/
 
 dist/
+
+DOCUMENTACION.md
