@@ -78,7 +78,7 @@ class InterfazMicroservicio:
             bg='#092912',
             fg='#ffffff',
             insertbackground='#ffffff',
-            selectbackground='#092912',
+            selectbackground='#3b3b3b',
             selectforeground='#ffffff'
         )
         
@@ -220,15 +220,45 @@ class InterfazMicroservicio:
         try:
             if not self.proceso or not self.proceso.stdout:
                 return
-            
+
             for linea in self.proceso.stdout:
                 self.cola_salida.put(linea)
         except Exception as e:
             self.cola_salida.put(f"[ERROR] {e}\n")
-    
+
+    def _leer_archivo_log(self):
+        """Lee nuevas líneas del archivo de log temporal"""
+        if not es_modo_ejecucion():
+            return
+
+        try:
+            import tempfile
+            temp_dir = tempfile.gettempdir()
+            log_path = os.path.join(temp_dir, 'ms_procesos_server.log')
+
+            if not os.path.exists(log_path):
+                return
+
+            # Leer las últimas líneas agregadas desde la última posición
+            if not hasattr(self, '_ultima_posicion_log'):
+                self._ultima_posicion_log = 0
+
+            with open(log_path, 'r', encoding='utf-8') as f:
+                f.seek(self._ultima_posicion_log)
+                nuevas_lineas = f.readlines()
+                self._ultima_posicion_log = f.tell()
+
+                for linea in nuevas_lineas:
+                    if linea.strip():  # Solo procesar líneas no vacías
+                        self.cola_salida.put(linea)
+
+        except Exception:
+            pass  # Ignorar errores de lectura del archivo
+
     def _programar_refresco_logs(self):
         """Programa el refresco periódico de los logs"""
         self._drenar_cola_logs()
+        self._leer_archivo_log()  # También leer del archivo de log
         self.raiz.after(100, self._programar_refresco_logs)
     
     def _drenar_cola_logs(self):
@@ -285,8 +315,8 @@ class InterfazMicroservicio:
                 background=[('active', color_fondo)]
             )
         except Exception:
-            pass
-    
+            pass  # Ignorar errores al limpiar logs
+
     def _establecer_icono(self):
         """Establece el icono de la ventana"""
         try:
@@ -304,9 +334,37 @@ class InterfazMicroservicio:
     def cerrar_interfaz(self):
         """Cierra la interfaz y detiene el microservicio"""
         try:
+            self._limpiar_logs()
             self._apagar_microservicio()
         finally:
             self.raiz.destroy()
+
+    def _limpiar_logs(self):
+        """Limpia los logs del área de texto y el archivo temporal"""
+        try:
+            # Limpiar el área de texto de logs
+            if hasattr(self, 'texto'):
+                self.texto.configure(state=tk.NORMAL)
+                self.texto.delete(1.0, tk.END)  # Limpiar todo el contenido
+                self.texto.configure(state=tk.DISABLED)
+
+            # Limpiar el archivo de log temporal
+            if es_modo_ejecucion():
+                try:
+                    import tempfile
+                    temp_dir = tempfile.gettempdir()
+                    log_path = os.path.join(temp_dir, 'ms_procesos_server.log')
+
+                    if os.path.exists(log_path):
+                        # Crear archivo vacío para limpiar el contenido
+                        with open(log_path, 'w', encoding='utf-8') as f:
+                            f.write("")  # Archivo vacío
+
+                except Exception:
+                    pass  # Ignorar errores al limpiar el archivo
+
+        except Exception:
+            pass  # Ignorar errores al limpiar logs
 
 
 def iniciar_interfaz():
